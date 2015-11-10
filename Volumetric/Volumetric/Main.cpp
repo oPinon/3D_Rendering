@@ -47,7 +47,7 @@ vector<float> box = {
 	1, -1, 1,
 	1, -1, -1,
 
-	- 1, 1, -1,
+	-1, 1, -1,
 	1, 1, -1,
 	1, 1, 1,
 	-1, 1, 1,
@@ -61,7 +61,7 @@ string readFile(const string& fileName) {
 	in.seekg(0, ios::beg);
 	vector<char> buffer(size);
 	in.read(buffer.data(), size);
-	return string(buffer.data(),buffer.size());
+	return string(buffer.data(), buffer.size());
 }
 
 struct Shader {
@@ -86,8 +86,8 @@ struct Shader {
 	}
 
 	Shader() { }
-	Shader(const string& vertFile, const string& fragFile) : name(vertFile+" "+fragFile) {
-		
+	Shader(const string& vertFile, const string& fragFile) : name(vertFile + " " + fragFile) {
+
 		string vertCode = readFile(vertFile).data();
 		const char* vertCodeP = vertCode.data();
 		vert = glCreateShader(GL_VERTEX_SHADER);
@@ -103,8 +103,8 @@ struct Shader {
 		displayShaderErrors(frag, fragFile.c_str());
 
 		prog = glCreateProgram();
-		glAttachShader(prog,vert);
-		glAttachShader(prog,frag);
+		glAttachShader(prog, vert);
+		glAttachShader(prog, frag);
 		glLinkProgram(prog);
 		int logLength;
 		glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLength);
@@ -135,12 +135,11 @@ Shader shaderBack;
 Shader shader;
 GLuint fbo;
 GLuint fboTex;
-GLuint voxelTex;
 
 GLuint wPos, hPos;
 
 void resize(GLsizei w, GLsizei h) {
-	
+
 	currentW = w;
 	currentH = h;
 	glViewport(0, 0, w, h);
@@ -163,10 +162,21 @@ struct VoxelTexture {
 
 	unsigned int width, height, depth;
 	vector<float> voxels;
+	GLuint id;
 
-	// sphere
-	VoxelTexture() {
-	
+	virtual void bind() {
+
+		glGenTextures(1, &id);
+		glBindTexture(GL_TEXTURE_3D, id);
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, width, height, depth, 0, GL_RED, GL_FLOAT, voxels.data());
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	}
+};
+
+struct VoxelSphere : public VoxelTexture {
+
+	VoxelSphere() {
 		width = 512;
 		height = 512;
 		depth = 512;
@@ -174,7 +184,7 @@ struct VoxelTexture {
 		for (int d = 0; d < depth; d++) {
 			for (int y = 0; y < height; y++) {
 				for (int x = 0; x < width; x++) {
-					
+
 					int dd = d - depth / 2;
 					int dy = y - height / 2;
 					int dx = x - width / 2;
@@ -184,9 +194,12 @@ struct VoxelTexture {
 			}
 		}
 	}
+};
+
+struct VoxelMRI : public VoxelTexture {
 
 	// from MRI files (start and end are inclusive)
-	VoxelTexture(const string& baseName, int start, int end) {
+	VoxelMRI(const string& baseName, int start, int end) {
 
 		depth = end - start + 1;
 
@@ -226,19 +239,6 @@ struct VoxelTexture {
 			voxels[i] = (voxels[i] - minV) / range;
 		}
 	}
-
-	GLuint generate() {
-
-		GLuint id;
-		glGenTextures(1, &id);
-		glBindTexture(GL_TEXTURE_3D, id);
-
-		glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, width, height, depth, 0, GL_RED, GL_FLOAT, voxels.data());
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // TODO : remove
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-		return id;
-	}
 };
 
 void init() {
@@ -260,12 +260,22 @@ void init() {
 	glGenTextures(1, &fboTex);
 	glBindTexture(GL_TEXTURE_2D, fboTex);
 
-	// binding to the shader
-	shader.use();
-	glUniform1ui(shader.getUniformLocation("backRender"), 0);
-
 	wPos = shader.getUniformLocation("width");
 	hPos = shader.getUniformLocation("height");
+
+	// binding to the shader
+	shader.use();
+	glUniform1i(shader.getUniformLocation("backRender"), 0);
+
+	VoxelTexture voxelTexture = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
+	voxelTexture.bind();
+	glUniform1i(shader.getUniformLocation("voxels"), 1);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_3D, voxelTexture.id);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, fboTex);
 
 	resize(currentW, currentH);
 }
@@ -276,10 +286,10 @@ void display() {
 	glLoadIdentity();
 
 	gluLookAt(
-		0, -4, 0,
+		0, -3, 0,
 		0, 0, 0,
 		0, 0, 1
-	);
+		);
 
 	if (viewRotX >= 360) { viewRotX -= 360; }
 	if (viewRotZ >= 360) { viewRotZ -= 360; }
@@ -297,7 +307,7 @@ void display() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glCullFace(GL_BACK);
 	shaderBack.use();
-	glDrawArrays(GL_QUADS, 0, box.size()/3);
+	glDrawArrays(GL_QUADS, 0, box.size() / 3);
 
 	// second pass : rendering the scene
 	glBindFramebuffer(GL_FRAMEBUFFER, NULL);

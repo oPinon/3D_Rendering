@@ -19,15 +19,19 @@ out vec4 color;
 // cube
 /*float getDensity( vec3 pos ) { return 1; }*/
 
+// 3d sampler
 float getDensity( vec3 pos ) {
 
-	float dist = length( pos - vec3(0.5,0.5,0.5) );
-	return dist < 0.5 ? abs(sin(17*pos.x*pos.x)) : 0;
+	// rescaling the coordinates (TODO : remove)
+	pos.x = min(pos.x*2,1);
+	pos.z = 1 - pos.z;
+
+	return max(0,10*(texture(voxels, pos.yzx).r));
 }
 
 void main() {
 
-	float step = 0.001; // precision of the ray marching
+	float step = 0.01; // precision of the ray marching
 
 	vec3 end = texture( backRender,
 		vec2(
@@ -46,5 +50,13 @@ void main() {
 		sum += step * getDensity(pos);
 	}
 
-	color = vec4( vec3(sum)/2, 1.0);
+	//color = vec4( vec3(sum)/2, 1.0);
+
+	color = vec4( // blue color ramp
+
+		sum/3,
+		sum/2,
+		sum,
+		1.0
+	);
 }
