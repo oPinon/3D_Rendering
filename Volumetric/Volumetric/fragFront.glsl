@@ -22,11 +22,7 @@ out vec4 color;
 // 3d sampler
 float getDensity( vec3 pos ) {
 
-	// rescaling the coordinates (TODO : remove)
-	pos.x = min(pos.x*2,1);
-	pos.z = 1 - pos.z;
-
-	return max(0,10*(texture(voxels, pos.yzx).r));
+	return max(0,exp(5*texture(voxels, pos.yzx).r)-1);
 }
 
 void main() {

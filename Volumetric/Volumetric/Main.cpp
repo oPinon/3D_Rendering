@@ -174,26 +174,135 @@ struct VoxelTexture {
 	}
 };
 
-struct VoxelSphere : public VoxelTexture {
+struct ParametricVoxel : public VoxelTexture {
 
-	VoxelSphere() {
-		width = 512;
-		height = 512;
-		depth = 512;
+	// x, y and z are in [0;1]
+	virtual float density(float x, float y, float z) = 0;
+
+	ParametricVoxel(int size = 256) {
+
+		width = size;
+		height = size;
+		depth = size;
 		voxels = vector<float>(width*height*depth);
-		for (int d = 0; d < depth; d++) {
-			for (int y = 0; y < height; y++) {
-				for (int x = 0; x < width; x++) {
+	}
 
-					int dd = d - depth / 2;
-					int dy = y - height / 2;
-					int dx = x - width / 2;
-					float dist = dd*dd + dy*dy + dx*dx;
-					voxels[depth*(height*y + x) + d] = (dist < 256 * 256) ? 1 : 0;
+	void compute() {
+
+		for (float d = 0; d < depth; d++) {
+			for (float y = 0; y < height; y++) {
+				for (float x = 0; x < width; x++) {
+
+					float v = density(x / width, y / height, d / depth);
+					voxels[depth*(height*y + x) + d] = v;
 				}
 			}
 		}
 	}
+};
+
+struct VoxelSphere : public ParametricVoxel {
+
+	float radius;
+
+	float density(float x, float y, float z) {
+		float dx = x - 0.5;
+		float dy = y - 0.2;
+		float dz = z - 0.5;
+		return ((dx*dx + dy*dy + dz*dz) < (radius*radius)) ? 0.1 : 0.0;
+	};
+
+	VoxelSphere(int size = 256, float radius = 0.5) : ParametricVoxel(size), radius(radius) {}
+};
+
+// https://en.wikipedia.org/wiki/Mandelbulb
+struct VoxelMandelbulb : public ParametricVoxel {
+
+	int order;
+	int maxIter = 20;
+
+	struct Vec3 {
+		float x, y, z;
+		// White and Nylander's power
+		Vec3 powWN(int n) {
+			switch (n) {
+			case 2:
+
+				return {
+					x*x - y*y - z*z,
+					2 * x*z,
+					2 * x*y
+				};
+
+			case 3:
+
+				return{
+					x*x*x - 3 * x*(y*y + z*z),
+					-y*y*y + 3 * y*x*x - y*z*z,
+					z*z*z - 3 * z*x + z*y*y
+				};
+
+			case 4:
+
+				return{
+					x*x*x*x*x - 10 * x*x*x*(y*y + z*z) + 5 * x*(y*y*y*y + z*z*z*z),
+					y*y*y*y*y - 10 * y*y*y*(z*z + x*x) + 5 * y*(z*z*z*z + x*x*x*x),
+					z*z*z*z*z - 10 * z*z*z*(x*x + y*y) + 5 * z*(x*x*x*x + y*y*y*y)
+				};
+
+			default:
+
+				if (n % 4 == 0) {
+					return powWN(4).powWN(n / 4);
+				}
+				if (n % 3 == 0) {
+					return powWN(3).powWN(n / 3);
+				}
+				if (n % 2 == 0) {
+					return powWN(2).powWN(n / 2);
+				}
+
+				float r = sqrt(x*x + y*y + z*z);
+				float phi = atan2(y, x);
+				float theta = atan2(sqrt(x*x + y*y), z);
+				float rn = pow(r, n);
+				return{
+					rn * sin(n*theta)*cos(n*phi),
+					rn * sin(n*theta)*sin(n*phi),
+					rn*cos(n*theta)
+				};
+			}
+		}
+		Vec3 operator+(const Vec3& off) {
+			return{
+				x + off.x,
+				y + off.y,
+				z + off.z
+			};
+		}
+		float norm2() {
+			return x*x + y*y + z*z;
+		}
+		float norm() { return sqrt(norm()); }
+	};
+
+	float density(float x, float y, float z) {
+		Vec3 coords0 = {
+			2 * (x - 0.5),
+			2 * (y - 0.5),
+			2 * (z - 0.5)
+		};
+		Vec3 coords(coords0);
+		int i = 0;
+		while (i < maxIter) {
+			if (coords.norm2()>1) { break; }
+			coords = coords.powWN(order) + coords0;
+			i++;
+		}
+		return (0.3f*i) / maxIter;
+	};
+
+	VoxelMandelbulb(int size = 256, int order = 3) : ParametricVoxel(size), order(order) {}
 };
 
 struct VoxelMRI : public VoxelTexture {
@@ -267,7 +376,8 @@ void init() {
 	shader.use();
 	glUniform1i(shader.getUniformLocation("backRender"), 0);
 
-	VoxelTexture voxelTexture = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
+	auto voxelTexture = VoxelMandelbulb(256);//VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
+	voxelTexture.compute();
 	voxelTexture.bind();
 	glUniform1i(shader.getUniformLocation("voxels"), 1);
 
