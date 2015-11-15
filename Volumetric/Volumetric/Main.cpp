@@ -137,6 +137,8 @@ GLuint fbo;
 GLuint fboTex;
 
 GLuint wPos, hPos;
+GLuint offPos;
+int offSet = 0;
 
 void resize(GLsizei w, GLsizei h) {
 
@@ -302,7 +304,7 @@ struct VoxelMandelbulb : public ParametricVoxel {
 		return (0.3f*i) / maxIter;
 	};
 
-	VoxelMandelbulb(int size = 256, int order = 3) : ParametricVoxel(size), order(order) {}
+	VoxelMandelbulb(int size = 256, int order = 4) : ParametricVoxel(size), order(order) {}
 };
 
 struct VoxelMRI : public VoxelTexture {
@@ -371,13 +373,14 @@ void init() {
 
 	wPos = shader.getUniformLocation("width");
 	hPos = shader.getUniformLocation("height");
+	offPos = shader.getUniformLocation("offset");
 
 	// binding to the shader
 	shader.use();
 	glUniform1i(shader.getUniformLocation("backRender"), 0);
 
-	auto voxelTexture = VoxelMandelbulb(256);//VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
-	voxelTexture.compute();
+	auto voxelTexture = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
+	//voxelTexture.compute();
 	voxelTexture.bind();
 	glUniform1i(shader.getUniformLocation("voxels"), 1);
 
@@ -442,6 +445,24 @@ void idle() {
 }
 
 void keyboard(unsigned char key, int x, int y) {
+
+	switch (key)
+	{
+	case 27 : // escape
+		glutDestroyWindow(windowId);
+		exit(EXIT_SUCCESS);
+		break;
+	case '-' :
+		offSet--;
+		shader.use();
+		glUniform1i(offPos, offSet);
+		break;
+	case '+':
+		offSet++;
+		shader.use();
+		glUniform1i(offPos, offSet);
+		break;
+	}
 
 }
 

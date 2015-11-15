@@ -2,6 +2,7 @@
 
 uniform float width;
 uniform float height;
+uniform int offset;
 
 uniform sampler2D backRender;
 uniform sampler3D voxels;
@@ -47,6 +48,7 @@ void main() {
 	}
 
 	//color = vec4( vec3(sum)/2, 1.0);
+	sum *= exp(0.1*offset);
 
 	color = vec4( // blue color ramp
 
