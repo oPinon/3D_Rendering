@@ -1,4 +1,6 @@
 
+#include "Voxel.h"
+
 #include <stdlib.h>
 #include <iostream>
 #include <GL/glew.h>
@@ -6,6 +8,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 using namespace std;
 
@@ -14,10 +17,20 @@ int currentH = 600;
 
 int targetFramerate = 60;
 
+bool demoMode = true;
+
 int mouseLastX, mouseLastY;
-int viewRotX = 30, viewRotZ = 10;
+float viewRotX = 30, viewRotZ = 10;
+int currentModel = 0;
 
 int windowId;
+
+vector<VoxelTexture> textures;
+
+struct keyFunction {
+	const string description;
+	void(*function)(void);
+};
 
 // TODO : sometimes doesn't refresh
 vector<float> box = {
@@ -160,197 +173,14 @@ void resize(GLsizei w, GLsizei h) {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-struct VoxelTexture {
-
-	unsigned int width, height, depth;
-	vector<float> voxels;
-	GLuint id;
-
-	virtual void bind() {
-
-		glGenTextures(1, &id);
-		glBindTexture(GL_TEXTURE_3D, id);
-		glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, width, height, depth, 0, GL_RED, GL_FLOAT, voxels.data());
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	}
-};
-
-struct ParametricVoxel : public VoxelTexture {
-
-	// x, y and z are in [0;1]
-	virtual float density(float x, float y, float z) = 0;
-
-	ParametricVoxel(int size = 256) {
-
-		width = size;
-		height = size;
-		depth = size;
-		voxels = vector<float>(width*height*depth);
-	}
-
-	void compute() {
-
-		for (float d = 0; d < depth; d++) {
-			for (float y = 0; y < height; y++) {
-				for (float x = 0; x < width; x++) {
-
-					float v = density(x / width, y / height, d / depth);
-					voxels[depth*(height*y + x) + d] = v;
-				}
-			}
-		}
-	}
-};
-
-struct VoxelSphere : public ParametricVoxel {
-
-	float radius;
-
-	float density(float x, float y, float z) {
-		float dx = x - 0.5;
-		float dy = y - 0.2;
-		float dz = z - 0.5;
-		return ((dx*dx + dy*dy + dz*dz) < (radius*radius)) ? 0.1 : 0.0;
-	};
-
-	VoxelSphere(int size = 256, float radius = 0.5) : ParametricVoxel(size), radius(radius) {}
-};
-
-// https://en.wikipedia.org/wiki/Mandelbulb
-struct VoxelMandelbulb : public ParametricVoxel {
-
-	int order;
-	int maxIter = 20;
-
-	struct Vec3 {
-		float x, y, z;
-		// White and Nylander's power
-		Vec3 powWN(int n) {
-			switch (n) {
-			case 2:
-
-				return {
-					x*x - y*y - z*z,
-					2 * x*z,
-					2 * x*y
-				};
-
-			case 3:
-
-				return{
-					x*x*x - 3 * x*(y*y + z*z),
-					-y*y*y + 3 * y*x*x - y*z*z,
-					z*z*z - 3 * z*x + z*y*y
-				};
-
-			case 4:
-
-				return{
-					x*x*x*x*x - 10 * x*x*x*(y*y + z*z) + 5 * x*(y*y*y*y + z*z*z*z),
-					y*y*y*y*y - 10 * y*y*y*(z*z + x*x) + 5 * y*(z*z*z*z + x*x*x*x),
-					z*z*z*z*z - 10 * z*z*z*(x*x + y*y) + 5 * z*(x*x*x*x + y*y*y*y)
-				};
-
-			default:
-
-				if (n % 4 == 0) {
-					return powWN(4).powWN(n / 4);
-				}
-				if (n % 3 == 0) {
-					return powWN(3).powWN(n / 3);
-				}
-				if (n % 2 == 0) {
-					return powWN(2).powWN(n / 2);
-				}
-
-				float r = sqrt(x*x + y*y + z*z);
-				float phi = atan2(y, x);
-				float theta = atan2(sqrt(x*x + y*y), z);
-				float rn = pow(r, n);
-				return{
-					rn * sin(n*theta)*cos(n*phi),
-					rn * sin(n*theta)*sin(n*phi),
-					rn*cos(n*theta)
-				};
-			}
-		}
-		Vec3 operator+(const Vec3& off) {
-			return{
-				x + off.x,
-				y + off.y,
-				z + off.z
-			};
-		}
-		float norm2() {
-			return x*x + y*y + z*z;
-		}
-		float norm() { return sqrt(norm()); }
-	};
-
-	float density(float x, float y, float z) {
-		Vec3 coords0 = {
-			2 * (x - 0.5),
-			2 * (y - 0.5),
-			2 * (z - 0.5)
-		};
-		Vec3 coords(coords0);
-		int i = 0;
-		while (i < maxIter) {
-			if (coords.norm2()>1) { break; }
-			coords = coords.powWN(order) + coords0;
-			i++;
-		}
-		return (0.3f*i) / maxIter;
-	};
-
-	VoxelMandelbulb(int size = 256, int order = 4) : ParametricVoxel(size), order(order) {}
-};
-
-struct VoxelMRI : public VoxelTexture {
-
-	// from MRI files (start and end are inclusive)
-	VoxelMRI(const string& baseName, int start, int end) {
-
-		depth = end - start + 1;
-
-		for (int i = 0; i < depth; i++) {
-			stringstream fileName;
-			fileName << baseName << (start + i);
-			string file = fileName.str();
-			ifstream in(file, ios::binary | ios::ate);
-			if (!in.is_open()) { cerr << "can't open " << file << endl; throw 1; }
-
-			const int size = in.tellg();
-
-			int w = sqrt(size / 2);
-
-			if (i == 0) {
-				width = w;
-				height = w;
-			}
-			else if (w != width) { cerr << "Error : images from " << baseName << " have different sizes" << endl; throw 1; }
-
-			in.seekg(0, ios::beg);
-			vector<short> data(w*w);
-			in.read((char*)data.data(), w*w * 2);
-			for (int i = 0; i < w*w; i++) {
-				voxels.push_back(_byteswap_ushort(((unsigned short*)data.data())[i]));
-			}
-		}
-
-		// normalizing
-		float minV = INFINITY, maxV = -INFINITY;
-		for (float v : voxels) {
-			if (v < minV) { minV = v; }
-			if (v > maxV) { maxV = v; }
-		}
-		float range = (minV != maxV) ? maxV - minV : 1;
-		for (int i = 0; i < voxels.size(); i++) {
-			voxels[i] = (voxels[i] - minV) / range;
-		}
-	}
-};
+void VoxelTexture::generate()
+{
+	glGenTextures(1, &id);
+	glBindTexture(GL_TEXTURE_3D, id);
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, width, height, depth, 0, GL_RED, GL_FLOAT, voxels.data());
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+}
 
 void init() {
 
@@ -379,13 +209,22 @@ void init() {
 	shader.use();
 	glUniform1i(shader.getUniformLocation("backRender"), 0);
 
-	auto voxelTexture = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
-	//voxelTexture.compute();
-	voxelTexture.bind();
+	textures.push_back(VoxelCube());
+	auto mri = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
+	mri.zRatio = -1; mri.xRatio = 0.7;
+	textures.push_back(mri);
+	auto mandelbulb = VoxelMandelbulb(128, 3);
+	mandelbulb.compute();
+	textures.push_back(mandelbulb);
+
+	for (auto& tex : textures) {
+		tex.generate();
+	}
+
 	glUniform1i(shader.getUniformLocation("voxels"), 1);
 
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_3D, voxelTexture.id);
+	glBindTexture(GL_TEXTURE_3D, textures[0].id);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, fboTex);
@@ -404,11 +243,19 @@ void display() {
 		0, 0, 1
 		);
 
+	if (demoMode) {
+		viewRotZ += 1;
+	}
+
 	if (viewRotX >= 360) { viewRotX -= 360; }
 	if (viewRotZ >= 360) { viewRotZ -= 360; }
 
 	glRotated(viewRotX, 1, 0, 0);
 	glRotated(viewRotZ, 0, 0, 1);
+	if (currentModel < textures.size()) {
+		auto& model = textures[currentModel];
+		glScalef(model.xRatio, model.yRatio, model.zRatio);
+	}
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -444,26 +291,71 @@ void idle() {
 	}
 }
 
+unordered_map<char, keyFunction> keys = {
+	{
+		27 ,
+		{
+			"Exits the program",
+			[](void) {
+				glutDestroyWindow(windowId);
+				exit(EXIT_SUCCESS);
+			}
+		}
+	},
+	{
+		'+' ,
+		{
+			"Increase brightness",
+			[](void) {
+				offSet++;
+				shader.use();
+				glUniform1i(offPos, offSet);
+			}
+		}
+	},
+	{
+		'-' ,
+		{
+			"Decrease brightness",
+			[](void) {
+				offSet--;
+				shader.use();
+				glUniform1i(offPos, offSet);
+			}
+		}
+	},
+	{
+		'd' ,
+		{
+			"Switches demo mode",
+			[](void) {
+				demoMode = !demoMode;
+			}
+		}
+	},
+	{
+		'm' ,
+		{
+			"Changes the current model",
+			[](void) {
+				currentModel++;
+				if (currentModel >= textures.size()) { currentModel = 0; }
+				if (currentModel < textures.size()) {
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_3D, textures[currentModel].id);
+				}
+			}
+		}
+	}
+};
+
+
 void keyboard(unsigned char key, int x, int y) {
 
-	switch (key)
-	{
-	case 27 : // escape
-		glutDestroyWindow(windowId);
-		exit(EXIT_SUCCESS);
-		break;
-	case '-' :
-		offSet--;
-		shader.use();
-		glUniform1i(offPos, offSet);
-		break;
-	case '+':
-		offSet++;
-		shader.use();
-		glUniform1i(offPos, offSet);
-		break;
+	auto function = keys.find(key);
+	if (function != keys.end()) {
+		function->second.function();
 	}
-
 }
 
 void keyboardSpecial(int key, int x, int y) {
@@ -494,6 +386,11 @@ void mouseClick(int button, int state, int x, int y) {
 
 int main(int argc, char *argv[])
 {
+	cout << "Keys : " << endl;
+	for (const auto& key : keys) {
+		cout << " [ " << key.first << " ] " << key.second.description << endl;
+	}
+
 	glutInit(&argc, argv);
 
 	glutInitWindowSize(currentW, currentH);

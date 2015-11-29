@@ -5,6 +5,12 @@ VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Volumetric", "Volumetric\Volumetric.vcxproj", "{E078267B-BBC7-4DC2-B5DB-030B7F075377}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{50EAC804-F96F-4AA4-8B88-BF2245FD9CE3}"
+	ProjectSection(SolutionItems) = preProject
+		Volumetric\FractalTest.h = Volumetric\FractalTest.h
+		Volumetric\Voxel.h = Volumetric\Voxel.h
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
