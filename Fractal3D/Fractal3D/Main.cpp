@@ -14,6 +14,9 @@ int currentH = 600;
 
 int targetFramerate = 60;
 
+float fractalOrder = 8.0;
+GLuint fractalOrderPos;
+
 int mouseLastX, mouseLastY;
 
 int windowId;
@@ -61,6 +64,41 @@ struct Vec3 {
 	}
 };
 
+void powN(float p, Vec3& z, float zr0, float& dr)
+{
+	float zo0 = asin(z.z / zr0);
+	float zi0 = atan2(z.y, z.x);
+	float zr = pow(zr0, p - 1.0);
+	float zo = zo0 * p;
+	float zi = zi0 * p;
+	float czo = cos(zo);
+
+	dr = zr * dr * p + 1.0;
+	zr *= zr0;
+
+	z = Vec3{ zr * czo * cos(zi), zr * czo * sin(zi), zr * sin(zo) };
+}
+
+// distance to fractal
+float fractalDist(float power, Vec3 c) {
+
+	Vec3 z = c;
+	float dr = 1.0;
+	float r = z.norm();
+
+	for (int i = 0; i < 256; i++) {
+
+		powN(power, z, r, dr);
+
+		z = z + c;
+
+		r = z.norm();
+
+		if (r > 2) { break; }
+	}
+	return 0.5 * log(r) * r / dr;
+}
+
 class Camera {
 
 private:
@@ -81,27 +119,29 @@ public:
 		dir = (dir + up * v).normalize();
 		up = left.cross(dir).normalize();
 	}
-	void horzRot(float v) {
+	void horzRot(float v) { // HACK
 		dir = (dir + left * (-v)).normalize();
-		left = (dir.cross(up)).normalize();
+		left = dir.cross(up);
+		left.z = 0; // constraining rotations along dir
+		left.normalize();
 	}
 	void moveHorz(float v) {
-		pos = pos + left * (-v);
+		pos = pos + left * (-v * fractalDist(fractalOrder,pos));
 	}
 	void moveVert(float v) {
-		pos = pos + up * v;
+		pos = pos + up * v * fractalDist(fractalOrder, pos);
 	}
 	void moveDir(float v) {
-		pos = pos + dir * v;
+		pos = pos + dir * v * fractalDist(fractalOrder, pos);
 	}
 };
 
 Camera camera = Camera(
-	{ 0, -1.5, 0 },
+	{ 0.5, -1.5, 0 },
 	{ 0, 1, 0}
 );
 
-float camSpeed = 0.01;
+float camSpeed = 0.1;
 
 unordered_map<char, keyFunction> keys = {
 	{
@@ -150,10 +190,24 @@ unordered_map<char, keyFunction> keys = {
 		}
 	},
 	{
-		31 ,
+		'c' ,
 		{
 			"Moves down",
 			[](void) { camera.moveVert(-camSpeed); camera.updateUniforms(); }
+		}
+	},
+	{
+		'o' ,
+		{
+			"Increase Fractal order",
+			[](void) { fractalOrder += 0.1; glUniform1f(fractalOrderPos,fractalOrder); }
+		}
+	},
+	{
+		'i' ,
+		{
+			"Decrease Fractal order",
+			[](void) { fractalOrder -= 0.1; glUniform1f(fractalOrderPos,fractalOrder); }
 		}
 	}
 };
@@ -254,9 +308,11 @@ void init() {
 	camera.uniform_dir = shader.getUniformLocation("camDir");
 	camera.uniform_up = shader.getUniformLocation("camUp");
 	camera.uniform_left = shader.getUniformLocation("camLeft");
+	fractalOrderPos = shader.getUniformLocation("order");
 
 	shader.use();
 	glUniform1f(uniform_ratio, currentW / (float)currentH);
+	glUniform1f(fractalOrderPos, fractalOrder);
 	camera.updateUniforms();
 }
 
