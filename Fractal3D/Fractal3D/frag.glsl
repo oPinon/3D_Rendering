@@ -13,6 +13,9 @@ float focal = 1.0;
 // fractal order
 uniform float order = 8.0;
 
+// MatCap shading
+uniform sampler2D matCap;
+
 out vec4 color;
 
 // Nylander's power formula
@@ -67,7 +70,7 @@ void main() {
 
 	// direction of the ray
 	vec3 dir = normalize(
-		focal * camDir * (1-0.2*length(vec2( ratio * position.x, position.y)))
+		focal * camDir // fisheye -> * (1-0.5*length(vec2( ratio * position.x, position.y)))
 		+ ratio * position.x * camLeft
 		+ position.y * camUp
 	);
@@ -93,5 +96,14 @@ void main() {
 	float fog = depth/maxDist; // fog intensity
 	vec3 normal = fracNormal(pos,0.01*depth); // surface normal
 
-	color = vec4( vec3(fog), 1.0 ); // output color
+	vec3 locNormal = vec3(
+		dot(normal, camLeft),
+		-dot(normal, camUp),
+		-dot(normal, camLeft)
+	);
+
+	//vec3 shade = max(0,0.5+0.5*dot(normal,dir)) * vec3(1.0);
+	vec3 shade = texture( matCap, (1+locNormal.xy)/2 ).rgb;
+
+	color = vec4( fog * vec3(1.0) + (1-fog) * shade, 1.0 ); // output color
 }

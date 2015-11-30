@@ -388,6 +388,22 @@ struct Shader {
 
 Shader shader;
 
+typedef unsigned char uchar;
+
+#include "lodepng.h"
+
+struct Image {
+	GLuint w, h;
+	vector<uchar> pixels;
+	Image(string fileName) {
+		unsigned error = lodepng::decode(pixels, w, h, fileName);
+		if (error) {
+			std::cerr << "error when opening " << fileName <<
+				" " << lodepng_error_text(error) << endl; throw 1;
+		}
+	}
+};
+
 void init() {
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -404,6 +420,16 @@ void init() {
 	glUniform1f(uniform_ratio, currentW / (float)currentH);
 	glUniform1f(fractalOrderPos, fractalOrder);
 	camera.updateUniforms();
+
+	// MatCap image
+	Image matCap("matcap.png");
+	GLuint texId;
+	glGenTextures(1,&texId);
+	glBindTexture(GL_TEXTURE_2D, texId);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, matCap.w, matCap.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, matCap.pixels.data());
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glUniform1ui(shader.getUniformLocation("matCap"), 0);
 }
 
 void display() {
