@@ -59,6 +59,14 @@ struct Vec3 {
 			x*v.y - v.x*y
 		};
 	}
+	void operator>>(fstream& file) {
+		file << x << " " << y << " " << z << endl;
+	}
+	/*void operator<<(fstream& file) {
+		file >> x;
+		file >> y;
+		file >> z;
+	}*/
 	void glUniform(const GLuint pos) const {
 		glUniform3f(pos, x, y, z);
 	}
@@ -99,11 +107,9 @@ float fractalDist(float power, Vec3 c) {
 	return 0.5 * log(r) * r / dr;
 }
 
-class Camera {
+struct Camera {
 
-private:
 	Vec3 pos, dir, left, up;
-public:
 	GLuint uniform_pos, uniform_dir, uniform_left, uniform_up; // shader uniforms
 	Camera(Vec3 pos, Vec3 dir, Vec3 up = { 0,0,1 }) :
 		pos(pos), dir(dir), up(up) {
@@ -136,7 +142,77 @@ public:
 	}
 };
 
-Camera camera = Camera(
+bool demoMode = false;
+
+// HACK : bugs if U-Turns
+// TODO : use quaternions instead
+struct CameraRecorded : public Camera {
+
+	vector<Camera> cameras;
+
+	float speed;
+	float tween = 0; // between 0 and 1
+	int currentCam = 0;
+
+	fstream file;
+
+	CameraRecorded(Vec3 pos, Vec3 dir, string fileName = "camRecord.txt", float speed = 0.01) :
+		Camera(pos,dir), speed(speed) {
+
+		file = fstream(fileName, fstream::in);
+		while (true) {
+			Vec3 pos, dir, up;
+			/*pos << file;
+			dir << file;
+			up << file;*/ // TODO
+			file >> pos.x >> pos.y >> pos.z;
+			file >> dir.x >> dir.y >> dir.z;
+			file >> up.x >> up.y >> up.z;
+			if (file.eof()) { break; }
+			cameras.push_back(Camera{ pos, dir, up });
+		}
+		if (cameras.size() == 1) { update(); }
+		if (cameras.size() > 1) {
+
+			currentCam = cameras.size() - 2;
+			tween = 1;
+			update();
+		}
+
+		file = fstream(fileName, fstream::app);
+	}
+
+	void recordFrame() {
+		//cameras.push_back(*this); TODO ?
+		cameras.push_back(Camera{ pos, dir, up });
+		pos >> file;
+		dir >> file;
+		up >> file;
+	}
+
+	void update() {
+
+		if (cameras.size() < 2) { return; }
+
+		Camera& cam0 = cameras[currentCam];
+		Camera& cam1 = cameras[currentCam+1];
+
+		pos = (cam0.pos * (1 - tween) + cam1.pos * tween);
+		dir = (cam0.dir * (1 - tween) + cam1.dir * tween).normalize();
+		up = (cam0.up * (1 - tween) + cam1.up * tween).normalize();
+		left = dir.cross(up).normalize();
+
+		tween += speed;
+		if (tween > 1) {
+			tween = 0;
+			currentCam++;
+			if (currentCam >= cameras.size() - 1) { currentCam = 0; };
+		}
+	}
+
+};
+
+CameraRecorded camera = CameraRecorded(
 	{ 0.5, -1.5, 0 },
 	{ 0, 1, 0}
 );
@@ -208,6 +284,20 @@ unordered_map<char, keyFunction> keys = {
 		{
 			"Decrease Fractal order",
 			[](void) { fractalOrder -= 0.1; glUniform1f(fractalOrderPos,fractalOrder); }
+		}
+	},
+	{
+		'p' ,
+		{
+			"Switches demo mode",
+			[](void) { demoMode = !demoMode; }
+		}
+	},
+	{
+		'r' ,
+		{
+			"Record Camera position",
+			[](void) { camera.recordFrame(); }
 		}
 	}
 };
@@ -317,6 +407,11 @@ void init() {
 }
 
 void display() {
+
+	if (demoMode) {
+		camera.update();
+		camera.updateUniforms();
+	}
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
