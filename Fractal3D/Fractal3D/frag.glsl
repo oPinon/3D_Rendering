@@ -84,7 +84,7 @@ void main() {
 
 	bool background = false; // is it a background pixel
 
-	for(int i = 0; i < 64; i++) {
+	for(int i = 0; i < 32; i++) {
 
 		step = dist(pos);
 		depth += step;

@@ -160,23 +160,25 @@ struct CameraRecorded : public Camera {
 		Camera(pos,dir), speed(speed) {
 
 		file = fstream(fileName, fstream::in);
-		while (true) {
-			Vec3 pos, dir, up;
-			/*pos << file;
-			dir << file;
-			up << file;*/ // TODO
-			file >> pos.x >> pos.y >> pos.z;
-			file >> dir.x >> dir.y >> dir.z;
-			file >> up.x >> up.y >> up.z;
-			if (file.eof()) { break; }
-			cameras.push_back(Camera{ pos, dir, up });
-		}
-		if (cameras.size() == 1) { update(); }
-		if (cameras.size() > 1) {
+		if (file.is_open()) {
+			while (true) {
+				Vec3 pos, dir, up;
+				/*pos << file;
+				dir << file;
+				up << file;*/ // TODO
+				file >> pos.x >> pos.y >> pos.z;
+				file >> dir.x >> dir.y >> dir.z;
+				file >> up.x >> up.y >> up.z;
+				if (file.eof()) { break; }
+				cameras.push_back(Camera{ pos, dir, up });
+			}
+			if (cameras.size() == 1) { update(); }
+			if (cameras.size() > 1) {
 
-			currentCam = cameras.size() - 2;
-			tween = 1;
-			update();
+				currentCam = cameras.size() - 2;
+				tween = 1;
+				update();
+			}
 		}
 
 		file = fstream(fileName, fstream::app);
@@ -190,16 +192,34 @@ struct CameraRecorded : public Camera {
 		up >> file;
 	}
 
+	// https://en.wikipedia.org/wiki/B%C3%A9zier_curve
 	void update() {
 
 		if (cameras.size() < 2) { return; }
 
 		Camera& cam0 = cameras[currentCam];
-		Camera& cam1 = cameras[currentCam+1];
+		Camera& cam1 = cameras[currentCam + 1];
 
-		pos = (cam0.pos * (1 - tween) + cam1.pos * tween);
-		dir = (cam0.dir * (1 - tween) + cam1.dir * tween).normalize();
-		up = (cam0.up * (1 - tween) + cam1.up * tween).normalize();
+		if (currentCam >= cameras.size() - 3) { // linear
+
+			float a = 1 - tween, b = 1 - a;
+			pos = (cam0.pos * a + cam1.pos * b);
+			dir = (cam0.dir * a + cam1.dir * b).normalize();
+			up = (cam0.up * a + cam1.up * b).normalize();
+		}
+		else { // Catmull-Rom
+
+			Camera& cam2 = cameras[currentCam + 2];
+			Camera& cam3 = cameras[currentCam + 3];
+
+			float a = - 0.5 * tween + tween * tween - 0.5 * tween * tween * tween,
+				b = 1 - 2.5 * tween * tween + 1.5 * tween * tween * tween,
+				c = 0.5 * tween + 2 *tween * tween - 1.5 * tween * tween * tween,
+				d = -0.5 * tween * tween + 0.5 * tween * tween * tween;
+			pos = cam0.pos * a + cam1.pos * b + cam2.pos * c + cam3.pos * d;
+			dir = (cam0.dir * a + cam1.dir * b + cam2.dir * c + cam3.dir * d).normalize();
+			up = (cam0.up * a + cam1.up * b + cam2.up * c + cam3.up * d).normalize();
+		}
 		left = dir.cross(up).normalize();
 
 		tween += speed;
@@ -218,89 +238,6 @@ CameraRecorded camera = CameraRecorded(
 );
 
 float camSpeed = 0.1;
-
-unordered_map<char, keyFunction> keys = {
-	{
-		27 ,
-		{
-			"Exits the program",
-			[](void) {
-				glutDestroyWindow(windowId);
-				exit(EXIT_SUCCESS);
-			}
-		}
-	},
-	{
-		'w' ,
-		{
-			"Moves forward",
-			[](void) { camera.moveDir(camSpeed); camera.updateUniforms(); }
-		}
-	},
-	{
-		's' ,
-		{
-			"Moves backward",
-			[](void) { camera.moveDir(-camSpeed); camera.updateUniforms(); }
-		}
-	},
-	{
-		'a' ,
-		{
-			"Moves left",
-			[](void) { camera.moveHorz(camSpeed); camera.updateUniforms(); }
-		}
-	},
-	{
-		'd' ,
-		{
-			"Moves right",
-			[](void) { camera.moveHorz(-camSpeed); camera.updateUniforms(); }
-		}
-	},
-	{
-		' ' ,
-		{
-			"Moves up",
-			[](void) { camera.moveVert(camSpeed); camera.updateUniforms(); }
-		}
-	},
-	{
-		'c' ,
-		{
-			"Moves down",
-			[](void) { camera.moveVert(-camSpeed); camera.updateUniforms(); }
-		}
-	},
-	{
-		'o' ,
-		{
-			"Increase Fractal order",
-			[](void) { fractalOrder += 0.1; glUniform1f(fractalOrderPos,fractalOrder); }
-		}
-	},
-	{
-		'i' ,
-		{
-			"Decrease Fractal order",
-			[](void) { fractalOrder -= 0.1; glUniform1f(fractalOrderPos,fractalOrder); }
-		}
-	},
-	{
-		'p' ,
-		{
-			"Switches demo mode",
-			[](void) { demoMode = !demoMode; }
-		}
-	},
-	{
-		'r' ,
-		{
-			"Record Camera position",
-			[](void) { camera.recordFrame(); }
-		}
-	}
-};
 
 string readFile(const string& fileName) {
 
@@ -404,6 +341,10 @@ struct Image {
 	}
 };
 
+#include <sstream>
+FILE* ffmpeg;
+bool recording = false;
+
 void init() {
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -449,6 +390,12 @@ void display() {
 	}glEnd();
 
 	glutSwapBuffers();
+
+	if (recording) {
+		vector<uchar> pixels(currentW*currentH * 4);
+		glReadPixels(0, 0, currentW, currentH, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+		fwrite(pixels.data(), sizeof(uchar)*currentW*currentH * 4, 1, ffmpeg);
+	}
 }
 
 void idle() {
@@ -460,6 +407,112 @@ void idle() {
 		nWaitUntil = nTimer + (int)(1000.0f / targetFramerate);
 	}
 }
+
+unordered_map<char, keyFunction> keys = {
+	{
+		27 ,
+		{
+			"Exits the program",
+			[](void) {
+	glutDestroyWindow(windowId);
+	exit(EXIT_SUCCESS);
+}
+		}
+	},
+	{
+		'w' ,
+		{
+			"Moves forward",
+			[](void) { camera.moveDir(camSpeed); camera.updateUniforms(); }
+		}
+	},
+	{
+		's' ,
+		{
+			"Moves backward",
+			[](void) { camera.moveDir(-camSpeed); camera.updateUniforms(); }
+		}
+	},
+	{
+		'a' ,
+		{
+			"Moves left",
+			[](void) { camera.moveHorz(camSpeed); camera.updateUniforms(); }
+		}
+	},
+	{
+		'd' ,
+		{
+			"Moves right",
+			[](void) { camera.moveHorz(-camSpeed); camera.updateUniforms(); }
+		}
+	},
+	{
+		' ' ,
+		{
+			"Moves up",
+			[](void) { camera.moveVert(camSpeed); camera.updateUniforms(); }
+		}
+	},
+	{
+		'c' ,
+		{
+			"Moves down",
+			[](void) { camera.moveVert(-camSpeed); camera.updateUniforms(); }
+		}
+	},
+	{
+		'o' ,
+		{
+			"Increase Fractal order",
+			[](void) { fractalOrder += 0.1; glUniform1f(fractalOrderPos,fractalOrder); }
+		}
+	},
+	{
+		'i' ,
+		{
+			"Decrease Fractal order",
+			[](void) { fractalOrder -= 0.1; glUniform1f(fractalOrderPos,fractalOrder); }
+		}
+	},
+	{
+		'p' ,
+		{
+			"Switches demo mode",
+			[](void) { demoMode = !demoMode; }
+		}
+	},
+	{
+		'r' ,
+		{
+			"Record Camera position",
+			[](void) { camera.recordFrame(); }
+		}
+	},
+	{
+		'g' ,
+		{
+			"Starts recording frames",
+			[](void) {
+				if (!recording) {
+
+					currentW = 2 * (currentW / 2);
+					currentH = 2 * (currentH / 2);
+					stringstream cmd;
+					cmd << "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s "<< currentW << "x" << currentH << " -i - "
+						"-threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip output.mp4";
+					ffmpeg = _popen(cmd.str().c_str(), "wb");
+
+					recording = true;
+				}
+				else {
+					_pclose(ffmpeg);
+					recording = false;
+				}
+			}
+		}
+	}
+};
 
 void keyboard(unsigned char key, int x, int y) {
 
