@@ -151,13 +151,12 @@ struct CameraRecorded : public Camera {
 	vector<Camera> cameras;
 
 	float speed;
-	float tween = 0; // between 0 and 1
-	int currentCam = 0;
+	float progress = 0; // between 0 and cameras.size()-1
 
 	fstream file;
 
 	CameraRecorded(Vec3 pos, Vec3 dir, string fileName = "camRecord.txt", float speed = 0.01) :
-		Camera(pos,dir), speed(speed) {
+		Camera(pos, dir), speed(speed) {
 
 		file = fstream(fileName, fstream::in);
 		if (file.is_open()) {
@@ -172,13 +171,7 @@ struct CameraRecorded : public Camera {
 				if (file.eof()) { break; }
 				cameras.push_back(Camera{ pos, dir, up });
 			}
-			if (cameras.size() == 1) { update(); }
-			if (cameras.size() > 1) {
-
-				currentCam = cameras.size() - 2;
-				tween = 1;
-				update();
-			}
+			update();
 		}
 
 		file = fstream(fileName, fstream::app);
@@ -192,42 +185,29 @@ struct CameraRecorded : public Camera {
 		up >> file;
 	}
 
-	// https://en.wikipedia.org/wiki/B%C3%A9zier_curve
+	static inline float interpKernel(float x) {
+		x = abs(x);
+		return x < 1 ? 0.5f + 0.5f*cosf(3.1416f*x) : 0;
+	}
+
 	void update() {
 
-		if (cameras.size() < 2) { return; }
-
-		Camera& cam0 = cameras[currentCam];
-		Camera& cam1 = cameras[currentCam + 1];
-
-		if (currentCam >= cameras.size() - 3) { // linear
-
-			float a = 1 - tween, b = 1 - a;
-			pos = (cam0.pos * a + cam1.pos * b);
-			dir = (cam0.dir * a + cam1.dir * b).normalize();
-			up = (cam0.up * a + cam1.up * b).normalize();
+		if (cameras.size() == 0) { return; }
+		float coeffs = 0;
+		pos = { 0,0,0 }; dir = { 0,0,0 }; up = { 0,0,0 };
+		for (int c = fmaxf(0.0f, progress - 5.0f); c <= fminf(cameras.size() - 1, progress + 5.0f); c++) {
+			float coeff = interpKernel((progress - c) / 3);
+			coeffs += coeff;
+			const Camera& cam = cameras[c];
+			pos = pos + cam.pos * coeff;
+			dir = dir + cam.dir * coeff;
+			up = up + cam.up * coeff;
 		}
-		else { // Catmull-Rom
-
-			Camera& cam2 = cameras[currentCam + 2];
-			Camera& cam3 = cameras[currentCam + 3];
-
-			float a = - 0.5 * tween + tween * tween - 0.5 * tween * tween * tween,
-				b = 1 - 2.5 * tween * tween + 1.5 * tween * tween * tween,
-				c = 0.5 * tween + 2 *tween * tween - 1.5 * tween * tween * tween,
-				d = -0.5 * tween * tween + 0.5 * tween * tween * tween;
-			pos = cam0.pos * a + cam1.pos * b + cam2.pos * c + cam3.pos * d;
-			dir = (cam0.dir * a + cam1.dir * b + cam2.dir * c + cam3.dir * d).normalize();
-			up = (cam0.up * a + cam1.up * b + cam2.up * c + cam3.up * d).normalize();
-		}
+		pos = pos / coeffs; dir = dir / coeffs; up = up / coeffs;
 		left = dir.cross(up).normalize();
 
-		tween += speed;
-		if (tween > 1) {
-			tween = 0;
-			currentCam++;
-			if (currentCam >= cameras.size() - 1) { currentCam = 0; };
-		}
+		progress += speed;
+		if (progress > cameras.size() - 1) { progress = 0; } // looping
 	}
 
 };
