@@ -125,6 +125,11 @@ namespace GlewGlut {
 
 	void display() {
 
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+
+		gluPerspective(50, ((double)currentW) / currentH, 0.1, 100);
+
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 
@@ -138,11 +143,6 @@ namespace GlewGlut {
 		glRotated(viewRotX, 1, 0, 0);
 		glRotated(viewRotZ, 0, 0, 1);
 		glScalef(zoom, zoom, zoom);
-
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-
-		gluPerspective(50, ((double)currentW) / currentH, 0.1, 100);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

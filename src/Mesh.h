@@ -107,28 +107,47 @@ public:
 		return mesh;
 	}
 
-	void draw() {
+	inline void copyV3(const float* src, std::vector<float>& dst) {
+		dst.push_back(src[0]);
+		dst.push_back(src[1]);
+		dst.push_back(src[2]);
+	}
 
-		// TODO : use VBO instead
-		glBegin(GL_TRIANGLES);
+	bool initialized = false;
+	GLuint faceVertVbId, faceNormVbId, lineVertVbId, lineNormVbId;
+	unsigned int nbVertTris, nbVertLines;
+	void init() {
+
+		// Sending Faces' vertices
+		std::vector<float> faceVerts, faceNorms;
 		for(const Face& face : faces) {
-			glNormal3fv(this->normals.data() + 3*face.vn[0]);
-			glVertex3fv(this->vertices.data() + 3*face.v[0]);
-			glNormal3fv(this->normals.data() + 3*face.vn[1]);
-			glVertex3fv(this->vertices.data() + 3*face.v[1]);
-			glNormal3fv(this->normals.data() + 3*face.vn[2]);
-			glVertex3fv(this->vertices.data() + 3*face.v[2]);
+			copyV3(this->vertices.data()+3*face.v[0], faceVerts);
+			copyV3(this->vertices.data()+3*face.v[1], faceVerts);
+			copyV3(this->vertices.data()+3*face.v[2], faceVerts);
+			copyV3(this->normals.data()+3*face.vn[0], faceNorms);
+			copyV3(this->normals.data()+3*face.vn[1], faceNorms);
+			copyV3(this->normals.data()+3*face.vn[2], faceNorms);
 			if(face.isQuad) {
-				glNormal3fv(this->normals.data() + 3*face.vn[0]);
-				glVertex3fv(this->vertices.data() + 3*face.v[0]);
-				glNormal3fv(this->normals.data() + 3*face.vn[2]);
-				glVertex3fv(this->vertices.data() + 3*face.v[2]);
-				glNormal3fv(this->normals.data() + 3*face.vn[3]);
-				glVertex3fv(this->vertices.data() + 3*face.v[3]);
+				copyV3(this->vertices.data()+3*face.v[0], faceVerts);
+				copyV3(this->vertices.data()+3*face.v[2], faceVerts);
+				copyV3(this->vertices.data()+3*face.v[3], faceVerts);
+				copyV3(this->normals.data()+3*face.vn[0], faceNorms);
+				copyV3(this->normals.data()+3*face.vn[2], faceNorms);
+				copyV3(this->normals.data()+3*face.vn[3], faceNorms);				
 			}
 		}
-		glEnd();
-		glBegin(GL_LINES);
+		nbVertTris = faceVerts.size()/3;
+
+		glGenBuffers(1, &this->faceVertVbId);
+		glBindBuffer(GL_ARRAY_BUFFER, this->faceVertVbId);
+		glBufferData(GL_ARRAY_BUFFER, faceVerts.size()*sizeof(float), faceVerts.data(), GL_STATIC_DRAW);
+
+		glGenBuffers(1, &this->faceNormVbId);
+		glBindBuffer(GL_ARRAY_BUFFER, this->faceNormVbId);
+		glBufferData(GL_ARRAY_BUFFER, faceNorms.size()*sizeof(float), faceNorms.data(), GL_STATIC_DRAW);
+
+		// Sending Lines' vertices
+		std::vector<float> lineVerts, lineNorms;
 		for(const Line& line : this->lines) {
 			float* start = this->vertices.data() + 3*line.start;
 			float* end = this->vertices.data() + 3*line.end;
@@ -139,11 +158,48 @@ public:
 				dy /= norm;
 				dz /= norm;
 			}
-			glNormal3f(dx,dy,dz);
-			glVertex3fv(start);
-			glNormal3f(dx,dy,dz);
-			glVertex3fv(end);
+			copyV3(start,lineVerts);
+			copyV3(end,lineVerts);
+			lineNorms.push_back(dx); lineNorms.push_back(dy); lineNorms.push_back(dz);
+			lineNorms.push_back(dx); lineNorms.push_back(dy); lineNorms.push_back(dz);
 		}
-		glEnd();
+		nbVertLines = lineVerts.size()/3;
+
+		glGenBuffers(1, &this->lineVertVbId);
+		glBindBuffer(GL_ARRAY_BUFFER, this->lineVertVbId);
+		glBufferData(GL_ARRAY_BUFFER, lineVerts.size()*sizeof(float), lineVerts.data(), GL_STATIC_DRAW);
+
+		glGenBuffers(1, &this->lineNormVbId);
+		glBindBuffer(GL_ARRAY_BUFFER, this->lineNormVbId);
+		glBufferData(GL_ARRAY_BUFFER, lineNorms.size()*sizeof(float), lineNorms.data(), GL_STATIC_DRAW);
+
+		initialized = true;
+	}
+
+	void draw() {
+
+		if(!initialized) { init(); }
+
+		// Drawing faces
+		glBindBuffer(GL_ARRAY_BUFFER, this->faceVertVbId);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, this->faceNormVbId);
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glNormalPointer(GL_FLOAT, 0, 0);
+
+		glDrawArrays(GL_TRIANGLES, 0, this->nbVertTris);
+
+		// Drawing normals
+		glBindBuffer(GL_ARRAY_BUFFER, this->lineVertVbId);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, this->lineNormVbId);
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glNormalPointer(GL_FLOAT, 0, 0);
+
+		glDrawArrays(GL_LINES, 0, this->nbVertLines);
 	}
 };
