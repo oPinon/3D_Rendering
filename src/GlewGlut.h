@@ -121,7 +121,13 @@ namespace GlewGlut {
 	float viewTrSpeed = 3.0;
 	bool movingCamera;
 
-	void (*displayScene)();
+	struct Callbacks {
+		void(*display)() = NULL;
+		void(*init)() = NULL;
+		void(*reshape)() = NULL;
+	};
+
+	Callbacks callbacks;
 
 	void display() {
 
@@ -146,7 +152,7 @@ namespace GlewGlut {
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		if (displayScene != NULL) { displayScene(); }
+		if (callbacks.display != NULL) { callbacks.display(); }
 
 		glutSwapBuffers();
 	}
@@ -210,6 +216,7 @@ namespace GlewGlut {
 		currentW = w;
 		currentH = h;
 		glViewport(0, 0, w, h);
+		if(callbacks.reshape != NULL) { callbacks.reshape(); }
 		display();
 	}
 
@@ -245,9 +252,9 @@ namespace GlewGlut {
 		}
 	}
 
-	void main(void(*displaySceneFunction)() = NULL, void(*initFunction)() = NULL) {
+	void main(const Callbacks& callbacks) {
 
-		displayScene = displaySceneFunction;
+		GlewGlut::callbacks = callbacks;
 
 		std::cout << "Keys : " << std::endl;
 		for (const auto& key : keys) {
@@ -273,8 +280,16 @@ namespace GlewGlut {
 
 		glewInit();
 
-		if (initFunction != NULL) { initFunction(); }
+		if (callbacks.init != NULL) { callbacks.init(); }
 
 		glutMainLoop();
+	}
+
+	// Legacy. TODO : remove
+	void main(void(*displayFunction)() = NULL, void(*initFunction)() = NULL) {
+		Callbacks callbacks;
+		callbacks.display = displayFunction;
+		callbacks.init = initFunction;
+		main(callbacks);
 	}
 }
