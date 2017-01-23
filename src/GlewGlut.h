@@ -17,7 +17,7 @@ T min(T a, T b) { return a < b ? a : b; }
 namespace GlewGlut {
 
 	struct KeyFunction {
-		const std::string description;
+		std::string description;
 		void(*function)(bool);
 	};
 
@@ -125,9 +125,18 @@ namespace GlewGlut {
 		void(*display)() = NULL;
 		void(*init)() = NULL;
 		void(*reshape)() = NULL;
-	};
+	} callbacks;
 
-	Callbacks callbacks;
+	struct Params {
+
+		enum CameraType
+		{
+			Fixed,
+			TurnAround
+			// TODO: FreeLook
+		} cameraType = TurnAround;
+
+	} params;
 
 	void display() {
 
@@ -222,12 +231,15 @@ namespace GlewGlut {
 
 	void mouseMove(int x, int y) {
 
-		if(movingCamera) {
-			viewTrX += viewTrSpeed*float(x - mouseLastX)/min(currentH,currentW);
-			viewY -= viewTrSpeed*float(y - mouseLastY)/min(currentH,currentW);
-		} else {
-			viewRotX = fmodf(viewRotX + y - mouseLastY, 360);
-			viewRotZ = fmodf(viewRotZ + x - mouseLastX, 360);	
+		if( params.cameraType == Params::CameraType::TurnAround )
+		{
+			if( movingCamera ) {
+				viewTrX += viewTrSpeed*float(x - mouseLastX)/min(currentH,currentW);
+				viewY -= viewTrSpeed*float(y - mouseLastY)/min(currentH,currentW);
+			} else {
+				viewRotX = fmodf(viewRotX + y - mouseLastY, 360);
+				viewRotZ = fmodf(viewRotZ + x - mouseLastX, 360);	
+			}
 		}
 		mouseLastX = x;
 		mouseLastY = y;
@@ -238,10 +250,12 @@ namespace GlewGlut {
 
 		switch (button) {
 		case 3: { // Scroll down
-			zoom /= zoomSpeed;
+			if( params.cameraType == Params::CameraType::TurnAround )
+				zoom /= zoomSpeed;
 		} break;
 		case 4: { // Scroll up
-			zoom *= zoomSpeed;
+			if ( params.cameraType == Params::CameraType::TurnAround )
+				zoom *= zoomSpeed;
 		} break;
 		default: {
 			if (state == GLUT_DOWN) {
@@ -252,9 +266,10 @@ namespace GlewGlut {
 		}
 	}
 
-	void main(const Callbacks& callbacks) {
+	void main( const Callbacks& callbacks, const Params& params = {} ) {
 
 		GlewGlut::callbacks = callbacks;
+		GlewGlut::params = params;
 
 		std::cout << "Keys : " << std::endl;
 		for (const auto& key : keys) {
