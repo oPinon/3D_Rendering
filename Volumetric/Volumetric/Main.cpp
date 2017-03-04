@@ -209,10 +209,11 @@ void init() {
 	shader.use();
 	glUniform1i(shader.getUniformLocation("backRender"), 0);
 
-	textures.push_back(VoxelCube());
-	auto mri = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
+	//textures.push_back(VoxelCube());
+	/*auto mri = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
 	mri.zRatio = -1; mri.xRatio = 0.7;
-	textures.push_back(mri);
+	textures.push_back(mri);*/
+	textures.push_back( PerlinNoise( 256 ) );
 	auto mandelbulb = VoxelMandelbulb(128, 3);
 	mandelbulb.compute();
 	textures.push_back(mandelbulb);

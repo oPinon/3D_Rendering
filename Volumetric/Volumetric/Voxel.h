@@ -6,6 +6,11 @@
 #include <fstream>
 #include <sstream>
 
+template< typename A, typename B>
+static inline A min( const A& a, const B& b ) { return a < b ? a : b; }
+template< typename A, typename B>
+static inline A max( const A& a, const B& b ) { return a > b ? a : b; }
+
 using namespace std;
 
 typedef unsigned int GLuint;
@@ -17,7 +22,42 @@ struct VoxelTexture {
 	vector<float> voxels;
 	GLuint id;
 
-	virtual void generate();
+	inline float& at( unsigned int x, unsigned int y, unsigned int z )
+	{ return voxels[ depth * ( height * y + x ) + z ]; }
+	inline const float& at( unsigned int x, unsigned int y, unsigned int z ) const
+	{ return voxels[ depth * ( height * y + x ) + z ]; }
+
+	void generate();
+
+	void resize( unsigned int w, unsigned int h, unsigned int d )
+	{
+		this->width = w;
+		this->height = h;
+		this->depth = d;
+		voxels = vector<float>(width*height*depth);
+	}
+	inline void resize( unsigned int size ) { resize( size, size, size ); }
+
+	VoxelTexture resample( unsigned int w, unsigned int h, unsigned int d ) const
+	{
+		VoxelTexture dst;
+		dst.resize( w, h, d );
+		for( unsigned int y = 0; y < h; y++ )
+		{
+			for( unsigned int x = 0; x < w; x++ )
+			{
+				for( unsigned int z = 0; z < d; z++ )
+				{
+					dst.at( x, y, z ) = this->at(
+						( x * this->width ) / w,
+						( y * this->height ) / h,
+						( z * this->depth ) / d
+					);
+				}
+			}
+		}
+		return dst;
+	}
 };
 
 struct ParametricVoxel : public VoxelTexture {
@@ -25,13 +65,7 @@ struct ParametricVoxel : public VoxelTexture {
 	// x, y and z are in [0;1]
 	virtual float density(float x, float y, float z) = 0;
 
-	ParametricVoxel(int size = 256) {
-
-		width = size;
-		height = size;
-		depth = size;
-		voxels = vector<float>(width*height*depth);
-	}
+	ParametricVoxel(int size = 256) { resize( size ); }
 
 	void compute() {
 
@@ -40,7 +74,7 @@ struct ParametricVoxel : public VoxelTexture {
 				for (float x = 0; x < width; x++) {
 
 					float v = density(x / width, y / height, d / depth);
-					voxels[depth*(height*y + x) + d] = v;
+					this->at( x, y, d ) = v;
 				}
 			}
 		}
@@ -204,5 +238,47 @@ struct VoxelMRI : public VoxelTexture {
 		for (int i = 0; i < voxels.size(); i++) {
 			voxels[i] = (voxels[i] - minV) / range;
 		}
+	}
+};
+
+struct PerlinNoise : public VoxelTexture
+{
+	PerlinNoise() {}
+	PerlinNoise( const VoxelTexture& tex ) // HACK ?
+	{
+		this->width = tex.width;
+		this->height = tex.height;
+		this->depth = tex.depth;
+		this->voxels = tex.voxels;
+	}
+
+	void addNoise( double scale = 1.0 )
+	{
+		for( unsigned int i = 0; i < this->voxels.size(); i++ )
+			this->voxels[i] += scale * ( 1 - 2.0f * float(rand()) / RAND_MAX );
+	}
+
+	void normalize()
+	{
+		double minV = INFINITY, maxV = -INFINITY;
+		for( unsigned int i = 0; i < this->voxels.size(); i++ )
+		{
+			minV = min( minV, voxels[i] );
+			maxV = max( maxV, voxels[i] );
+		}
+		for( unsigned int i = 0; i < this->voxels.size(); i++ )
+			voxels[i] = ( voxels[i] - minV ) / ( maxV - minV );
+	}
+
+	PerlinNoise( unsigned int w )
+	{
+		this->resize( 1 );
+		while( this->width < w )
+		{
+			unsigned int newS = this->width * 2;
+			*this = this->resample( newS, newS, newS );
+			addNoise( std::pow( this->width, -0.3f ) );
+		}
+		//normalize();
 	}
 };
