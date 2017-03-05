@@ -48,11 +48,36 @@ struct VoxelTexture {
 			{
 				for( unsigned int z = 0; z < d; z++ )
 				{
-					dst.at( x, y, z ) = this->at(
-						( x * this->width ) / w,
-						( y * this->height ) / h,
-						( z * this->depth ) / d
-					);
+					float
+						xO = float( x * this->width ) / w,
+						yO = float( y * this->height ) / h,
+						zO = float( z * this->depth ) / d;
+					unsigned int // floor
+						xF = xO,
+						yF = yO,
+						zF = zO;
+					unsigned int // ceil
+						xC = min( xF + 1, width - 1 ),
+						yC = min( yF + 1, height - 1 ),
+						zC = min( zF + 1, depth - 1 );
+					float // in [0;1]
+						xI = xO - xF,
+						yI = yO - yF,
+						zI = zO - zF;
+					dst.at( x, y, z ) =// at( xF, yF, zF );
+						xI * (
+							yI * (
+								zI * at( xC, yC, zC ) + ( 1 - zI ) * at( xC, yC, zF )
+							) + ( 1 - yI ) * (
+								zI * at( xC, yF, zC ) + ( 1 - zI ) * at( xC, yF, zF )
+							)
+						) + ( 1 - xI ) * (
+							yI * (
+								zI * at( xF, yC, zC ) + ( 1 - zI ) * at( xF, yC, zF )
+							) + ( 1 - yI ) * (
+								zI * at( xF, yF, zC ) + ( 1 - zI ) * at( xF, yF, zF )
+							)
+						);
 				}
 			}
 		}
