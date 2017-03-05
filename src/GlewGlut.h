@@ -7,12 +7,18 @@
 #include <vector>
 #include <fstream>
 #include <unordered_map>
+#include <math.h>
+#include <assert.h>
 #include <string>
 
 template<typename T>
 T max(T a, T b) { return a < b ? b : a; }
 template<typename T>
 T min(T a, T b) { return a < b ? a : b; }
+
+template<typename A, typename B>
+inline A mod(const A& a, const B& b)
+{ return a - floor( a / b ) * b; }
 
 namespace GlewGlut {
 
@@ -237,8 +243,8 @@ namespace GlewGlut {
 				viewTrX += viewTrSpeed*float(x - mouseLastX)/min(currentH,currentW);
 				viewY -= viewTrSpeed*float(y - mouseLastY)/min(currentH,currentW);
 			} else {
-				viewRotX = fmodf(viewRotX + y - mouseLastY, 360);
-				viewRotZ = fmodf(viewRotZ + x - mouseLastX, 360);	
+				viewRotX = mod(viewRotX + y - mouseLastY, 360);
+				viewRotZ = mod(viewRotZ + x - mouseLastX, 360);	
 			}
 		}
 		mouseLastX = x;
