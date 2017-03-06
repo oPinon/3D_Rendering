@@ -11,10 +11,8 @@
 
 using namespace std;
 
-bool demoMode = true;
+bool demoMode = false;
 int currentModel = 0;
-
-int windowId;
 
 vector<VoxelTexture> textures;
 
@@ -113,11 +111,11 @@ void init() {
 	shader.use();
 	glUniform1i(shader.getUniformLocation("backRender"), 0);
 
-	//textures.push_back(VoxelCube());
+	textures.push_back( PerlinNoise( 256 ) );
+	textures.push_back(VoxelCube());
 	/*auto mri = VoxelMRI("data/MRbrain/MRbrain.", 1, 109);
 	mri.zRatio = -1; mri.xRatio = 0.7;
 	textures.push_back(mri);*/
-	textures.push_back( PerlinNoise( 256 ) );
 	auto mandelbulb = VoxelMandelbulb(128, 3);
 	mandelbulb.compute();
 	textures.push_back(mandelbulb);
@@ -141,6 +139,9 @@ void display() {
 		auto& model = textures[currentModel];
 		glScalef(model.xRatio, model.yRatio, model.zRatio);
 	}
+
+	if( demoMode )
+		GlewGlut::viewRotZ += 1;
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
