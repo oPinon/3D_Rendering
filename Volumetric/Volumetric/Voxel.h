@@ -53,9 +53,9 @@ struct VoxelTexture {
 						yO = float( y * this->height ) / h,
 						zO = float( z * this->depth ) / d;
 					unsigned int // floor
-						xF = xO,
-						yF = yO,
-						zF = zO;
+						xF = unsigned ( xO ),
+						yF = unsigned ( yO ),
+						zF = unsigned ( zO );
 					unsigned int // ceil
 						xC = min( xF + 1, width - 1 ),
 						yC = min( yF + 1, height - 1 ),
@@ -94,11 +94,11 @@ struct ParametricVoxel : public VoxelTexture {
 
 	void compute() {
 
-		for (float d = 0; d < depth; d++) {
-			for (float y = 0; y < height; y++) {
-				for (float x = 0; x < width; x++) {
+		for (unsigned int d = 0; d < depth; d++) {
+			for (unsigned int y = 0; y < height; y++) {
+				for (unsigned int x = 0; x < width; x++) {
 
-					float v = density(x / width, y / height, d / depth);
+					float v = density( float(x) / width, float(y) / height, float(d) / depth);
 					this->at( x, y, d ) = v;
 				}
 			}
@@ -111,10 +111,10 @@ struct VoxelSphere : public ParametricVoxel {
 	float radius;
 
 	float density(float x, float y, float z) {
-		float dx = x - 0.5;
-		float dy = y - 0.2;
-		float dz = z - 0.5;
-		return ((dx*dx + dy*dy + dz*dz) < (radius*radius)) ? 0.1 : 0.0;
+		float dx = x - 0.5f;
+		float dy = y - 0.2f;
+		float dz = z - 0.5f;
+		return ((dx*dx + dy*dy + dz*dz) < (radius*radius)) ? 0.1f : 0.0f;
 	};
 
 	VoxelSphere(int size = 256, float radius = 0.5) : ParametricVoxel(size), radius(radius) {}
@@ -126,7 +126,7 @@ struct VoxelCube : public VoxelTexture {
 		width = 1;
 		height = 1;
 		depth = 1;
-		voxels = vector<float>(1, 0.1);
+		voxels = vector<float>(1, 0.1f);
 	}
 };
 
@@ -204,9 +204,9 @@ struct VoxelMandelbulb : public ParametricVoxel {
 
 	float density(float x, float y, float z) {
 		Vec3 coords0 = {
-			2 * (x - 0.5),
-			2 * (y - 0.5),
-			2 * (z - 0.5)
+			2 * (x - 0.5f),
+			2 * (y - 0.5f),
+			2 * (z - 0.5f)
 		};
 		Vec3 coords(coords0);
 		int i = 0;
@@ -228,16 +228,16 @@ struct VoxelMRI : public VoxelTexture {
 
 		depth = end - start + 1;
 
-		for (int i = 0; i < depth; i++) {
+		for (unsigned int i = 0; i < depth; i++) {
 			stringstream fileName;
 			fileName << baseName << (start + i);
 			string file = fileName.str();
 			ifstream in(file, ios::binary | ios::ate);
 			if (!in.is_open()) { cerr << "can't open " << file << endl; throw 1; }
 
-			const int size = in.tellg();
+			std::streampos size = in.tellg();
 
-			int w = sqrt(size / 2);
+			int w = int(sqrtf(float(size) / 2));
 
 			if (i == 0) {
 				width = w;
@@ -277,7 +277,7 @@ struct PerlinNoise : public VoxelTexture
 		this->voxels = tex.voxels;
 	}
 
-	void addNoise( double scale = 1.0 )
+	void addNoise( float scale = 1.0 )
 	{
 		for( unsigned int i = 0; i < this->voxels.size(); i++ )
 			this->voxels[i] += scale * ( 1 - 2.0f * float(rand()) / RAND_MAX );
@@ -285,7 +285,7 @@ struct PerlinNoise : public VoxelTexture
 
 	void normalize()
 	{
-		double minV = INFINITY, maxV = -INFINITY;
+		float minV = INFINITY, maxV = -INFINITY;
 		for( unsigned int i = 0; i < this->voxels.size(); i++ )
 		{
 			minV = min( minV, voxels[i] );
@@ -302,7 +302,7 @@ struct PerlinNoise : public VoxelTexture
 		{
 			unsigned int newS = this->width * 2;
 			*this = this->resample( newS, newS, newS );
-			addNoise( std::pow( this->width, -0.3f ) );
+			addNoise( std::powf( float(this->width), -0.3f ) );
 		}
 		//normalize();
 	}

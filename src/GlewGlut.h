@@ -251,7 +251,7 @@ namespace GlewGlut {
 		mouseLastY = y;
 	}
 
-	float zoomSpeed = 0.96;
+	float zoomSpeed = 0.96f;
 	void mouseClick(int button, int state, int x, int y) {
 
 		switch (button) {

@@ -61,8 +61,8 @@ int offSet = 0;
 
 void resize() {
 
-	glUniform1f(wPos, GlewGlut::currentW);
-	glUniform1f(hPos, GlewGlut::currentH);
+	glUniform1f(wPos, GLfloat( GlewGlut::currentW ) );
+	glUniform1f(hPos, GLfloat( GlewGlut::currentH ) );
 
 	// recreating the frameBuffer for the correct size
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -143,17 +143,12 @@ void display() {
 	if( demoMode )
 		GlewGlut::viewRotZ += 1;
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-	gluPerspective(50, ((double)GlewGlut::currentW) / GlewGlut::currentH, 0.1, 100);
-
 	// first pass : rendering back faces on the framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glCullFace(GL_BACK);
 	shaderBack.use();
-	glDrawArrays(GL_QUADS, 0, box.size() / 3);
+	glDrawArrays(GL_QUADS, 0, GLsizei( box.size() / 3 ));
 
 	// second pass : rendering the scene
 	glBindFramebuffer(GL_FRAMEBUFFER, NULL);
@@ -162,7 +157,7 @@ void display() {
 
 	glCullFace(GL_FRONT);
 	shader.use();
-	glDrawArrays(GL_QUADS, 0, box.size() / 3);
+	glDrawArrays(GL_QUADS, 0, GLsizei( box.size() / 3 ));
 }
 
 int main(int argc, char *argv[])
