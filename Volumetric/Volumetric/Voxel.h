@@ -323,8 +323,9 @@ Mesh VoxelTexture::isoSurface( float threshold ) const
 				if( at( x, y, z ) >= threshold )
 				{
 					Mesh cube = Cube();
-					cube.translate( { float( x ), float( y ), float( z ) } );
-					cube.scale( { 1.0f / width, 1.0f / height, 1.0f / depth } );
+					cube.translate( { float( 2*x ), float( 2*y ), float( 2*z ) } );
+					cube.scale( { 0.5f / width, 0.5f / height, 0.5f / depth } );
+					cube.translate( { -0.5f, -0.5f, -0.5f } );
 					mesh += cube;
 				}
 			}

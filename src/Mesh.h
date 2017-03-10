@@ -87,14 +87,14 @@ public:
 
 	void scale( const Vec3F& s )
 	{
-		for( uint i = 0; i < vertices.size(); i += 3 )
+		for( uint i = 0; i < vertices.size(); i ++ )
 			for( uint j = 0; j < 3; j++ )
 				vertices[i][j] *= s[j];
 	}
 
 	void translate( const Vec3F& t )
 	{
-		for( uint i = 0; i < vertices.size(); i += 3 )
+		for( uint i = 0; i < vertices.size(); i ++ )
 			for( uint j = 0; j < 3; j++ )
 				vertices[i][j] += t[j];
 	}
