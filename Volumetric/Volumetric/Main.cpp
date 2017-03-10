@@ -16,39 +16,7 @@ int currentModel = 0;
 
 vector<VoxelTexture> textures;
 
-// TODO : sometimes doesn't refresh
-vector<float> box = {
-
-	-1, -1, -1,
-	1, -1, -1,
-	1, 1, -1,
-	-1, 1, -1,
-
-	-1, -1, 1,
-	-1, 1, 1,
-	1, 1, 1,
-	1, -1, 1,
-
-	-1, -1, -1,
-	-1, 1, -1,
-	-1, 1, 1,
-	-1, -1, 1,
-
-	1, -1, -1,
-	1, -1, 1,
-	1, 1, 1,
-	1, 1, -1,
-
-	-1, -1, -1,
-	-1, -1, 1,
-	1, -1, 1,
-	1, -1, -1,
-
-	-1, 1, -1,
-	1, 1, -1,
-	1, 1, 1,
-	-1, 1, 1,
-};
+Mesh box = Cube();
 
 GlewGlut::Shader shaderBack;
 GlewGlut::Shader shader;
@@ -93,8 +61,7 @@ void init() {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, &box[0]);
+	box.init();
 
 	// frameBuffer for backFaces (TODO : use floats)
 	glGenFramebuffers(1, &fbo);
@@ -148,7 +115,7 @@ void display() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glCullFace(GL_BACK);
 	shaderBack.use();
-	glDrawArrays(GL_QUADS, 0, GLsizei( box.size() / 3 ));
+	box.draw();
 
 	// second pass : rendering the scene
 	glBindFramebuffer(GL_FRAMEBUFFER, NULL);
@@ -157,7 +124,7 @@ void display() {
 
 	glCullFace(GL_FRONT);
 	shader.use();
-	glDrawArrays(GL_QUADS, 0, GLsizei( box.size() / 3 ));
+	box.draw();
 }
 
 int main(int argc, char *argv[])
