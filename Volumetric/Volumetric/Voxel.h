@@ -1,15 +1,18 @@
 #pragma once
 
+#include "Mesh.h"
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
 #include <fstream>
 #include <sstream>
 
+/*
 template< typename A, typename B>
 static inline A min( const A& a, const B& b ) { return a < b ? a : b; }
 template< typename A, typename B>
 static inline A max( const A& a, const B& b ) { return a > b ? a : b; }
+*/
 
 using namespace std;
 
@@ -28,6 +31,8 @@ struct VoxelTexture {
 	{ return voxels[ depth * ( height * y + x ) + z ]; }
 
 	void generate();
+
+	Mesh isoSurface( float threshold = 0 ) const;
 
 	void resize( unsigned int w, unsigned int h, unsigned int d )
 	{
@@ -57,9 +62,9 @@ struct VoxelTexture {
 						yF = unsigned ( yO ),
 						zF = unsigned ( zO );
 					unsigned int // ceil
-						xC = min( xF + 1, width - 1 ),
-						yC = min( yF + 1, height - 1 ),
-						zC = min( zF + 1, depth - 1 );
+						xC = std::min( xF + 1, width - 1 ),
+						yC = std::min( yF + 1, height - 1 ),
+						zC = std::min( zF + 1, depth - 1 );
 					float // in [0;1]
 						xI = xO - xF,
 						yI = yO - yF,
@@ -288,8 +293,8 @@ struct PerlinNoise : public VoxelTexture
 		float minV = INFINITY, maxV = -INFINITY;
 		for( unsigned int i = 0; i < this->voxels.size(); i++ )
 		{
-			minV = min( minV, voxels[i] );
-			maxV = max( maxV, voxels[i] );
+			minV = std::min( minV, voxels[i] );
+			maxV = std::max( maxV, voxels[i] );
 		}
 		for( unsigned int i = 0; i < this->voxels.size(); i++ )
 			voxels[i] = ( voxels[i] - minV ) / ( maxV - minV );
@@ -307,3 +312,21 @@ struct PerlinNoise : public VoxelTexture
 		//normalize();
 	}
 };
+
+Mesh VoxelTexture::isoSurface( float threshold ) const
+{
+	Mesh mesh;
+	for( unsigned int z = 0; z < depth; z++ )
+		for( unsigned int y = 0; y < height; y++ )
+			for( unsigned int x = 0; x < width; x++ )
+			{
+				if( at( x, y, z ) >= threshold )
+				{
+					Mesh cube = Cube();
+					cube.translate( { float( x ), float( y ), float( z ) } );
+					cube.scale( { 1.0f / width, 1.0f / height, 1.0f / depth } );
+					mesh += cube;
+				}
+			}
+	return mesh;
+}

@@ -8,14 +8,55 @@
 #include <iostream>
 #include <sstream>
 
+typedef unsigned int uint;
+
+template <uint S, typename T>
+struct Vec
+{
+protected:
+	inline const uint size() { return S; }
+public:
+	const T& operator[]( unsigned int i ) const { return values[i]; }
+	T& operator[]( unsigned int i ) { return values[i]; }
+	void operator+=( const T& v ) { for( uint i = 0; i < size(); i++ ) { values[i] += v; } }
+	T values[S];
+	Vec() { for( uint i = 0; i < size(); i++ ) { values[i] = 0; } }
+};
+
+template <typename T>
+struct _Vec3 : public Vec<3, T>
+{
+	_Vec3() : Vec<3,T>() {}
+	_Vec3( const T& x, const T& y, const T& z ) : Vec<3,T>()
+	{ values[0] = x; values[1] = y; values[2] = z; }
+};
+
+template <typename T>
+struct _Vec4 : public Vec<4, T>
+{
+	_Vec4() : Vec<4,T>() {}
+	_Vec4( const T& x, const T& y, const T& z, const T& w ) : Vec<4, T>()
+	{ values[0] = x; values[1] = y; values[2] = z; values[3] = w; }
+};
+
+typedef _Vec3<float> Vec3F;
+typedef _Vec4<uint> Vec4U;
+
 class Mesh {
+
+protected:
 
 	struct Face {
 		bool isQuad; // else is triangle
 		bool hasNormals;
 		bool hasTexCoords;
 
-		unsigned int v[4], vt[4], vn[4];
+		Vec4U v, vt, vn;
+
+		Face() {}
+		Face( const Vec4U& v )
+			: isQuad( true ), v( v )
+		{}
 	};
 	struct Line {
 		unsigned int start, end;
@@ -26,6 +67,52 @@ class Mesh {
 	std::vector<Face> faces;
 
 public:
+
+	inline void addVertex( const Vec3F& v )
+	{
+		for( uint i = 0; i < 3; i++ )
+		{
+			vertices.push_back( v[i] );
+			normals.push_back( 0 );
+		}
+	}
+
+	void scale( const Vec3F& s )
+	{
+		for( uint i = 0; i < vertices.size(); i += 3 )
+			for( uint j = 0; j < 3; j++ )
+				vertices[i + j] *= s[j];
+	}
+
+	void translate( const Vec3F& t )
+	{
+		for( uint i = 0; i < vertices.size(); i += 3 )
+			for( uint j = 0; j < 3; j++ )
+				vertices[i + j] += t[j];
+	}
+
+	void operator+=( const Mesh& m )
+	{
+		for( const auto& l : m.lines )
+		{
+			Line newL = l;
+			newL.start += this->vertices.size()/3;
+			newL.end += this->vertices.size()/3;
+			this->lines.push_back( newL );
+		}
+		for( const auto& f : m.faces )
+		{
+			Face newF = f;
+			newF.v += uint( this->vertices.size()/3 );
+			newF.vn += uint( this->normals.size()/3 );
+			//newF.vt += // TODO
+			this->faces.push_back( newF );
+		}
+		for( const auto& v : m.vertices )
+			this->vertices.push_back( v );
+		for( const auto& n : m.normals )
+			this->normals.push_back( n );
+	}
 	
 	static Mesh loadWavefront(const std::string& fileName) {
 		std::fstream file(fileName, std::ios::in);
@@ -115,7 +202,8 @@ public:
 
 	bool initialized = false;
 	GLuint faceVertVbId, faceNormVbId, lineVertVbId, lineNormVbId;
-	unsigned int nbVertTris, nbVertLines;
+	size_t nbVertTris, nbVertLines;
+
 	void init() {
 
 		// Sending Faces' vertices
@@ -189,7 +277,7 @@ public:
 		glEnableClientState(GL_NORMAL_ARRAY);
 		glNormalPointer(GL_FLOAT, 0, 0);
 
-		glDrawArrays(GL_TRIANGLES, 0, this->nbVertTris);
+		glDrawArrays(GL_TRIANGLES, 0, GLsizei( this->nbVertTris ) );
 
 		// Drawing normals
 		glBindBuffer(GL_ARRAY_BUFFER, this->lineVertVbId);
@@ -200,6 +288,28 @@ public:
 		glEnableClientState(GL_NORMAL_ARRAY);
 		glNormalPointer(GL_FLOAT, 0, 0);
 
-		glDrawArrays(GL_LINES, 0, this->nbVertLines);
+		glDrawArrays(GL_LINES, 0, GLsizei( this->nbVertLines ) );
+	}
+};
+
+struct Cube : public Mesh
+{
+	Cube()
+	{
+		//uint c = 0;
+		for( float z = -1; z <= 1; z += 2 )
+			for( float y = -1; y <= 1; y += 2 )
+				for( float x = -1; x <= 1; x += 2 )
+				{
+					//std::cout << c++ << " " << x << " " << y << " " << z << std::endl;
+					addVertex( { x, y, z } );
+				}
+
+		faces.push_back( Face( { 0, 1, 2, 3 } ) );
+		faces.push_back( Face( { 4, 6, 7, 5} ) );
+		faces.push_back( Face( { 0, 1, 6, 4 } ) );
+		faces.push_back( Face( { 1, 5, 7, 3 } ) );
+		faces.push_back( Face( { 0, 4, 5, 1 } ) );
+		faces.push_back( Face( { 2, 3, 7, 6 } ) );
 	}
 };
