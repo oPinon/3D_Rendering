@@ -14,6 +14,7 @@ typedef unsigned int uint;
 template <uint S, typename T>
 struct Vec
 {
+	T values[S];
 protected:
 	inline const uint size() const { return S; }
 public:
@@ -26,9 +27,18 @@ public:
 	void operator/=( const T& v ) { for( uint i = 0; i < size(); i++ ) { values[i] /= v; } }
 	Vec operator/( const T& v ) const { Vec dst = ( *this ); dst /= v; return dst; }
 	Vec normalized() const { const T n = norm(); return n == 0 ? Vec() : ( *this ) / n; }
-	T values[S];
+
+	Vec cross( const Vec& v ) const
+	{
+		Vec dst;
+		for( uint i = 0; i < size(); i++ )
+			dst[i] = ( values[(i+S-1)%S] * v[(i+S+1)%S] ) - ( values[(i+S+1)%S] * v[(i+S-1)%S] );
+		return dst;
+	}
+
 	Vec() { for( uint i = 0; i < size(); i++ ) { values[i] = 0; } }
-	Vec( std::initializer_list<T> l ) { for( uint i = 0; i < size(); i++ ) { values[i] = l.begin()[i]; } } // HACK ?
+	template <typename... T2>
+	Vec( T2... v ) : values{ T(v)... } {}
 };
 
 typedef Vec<3,float> Vec3F;
@@ -67,7 +77,7 @@ public:
 	inline void addVertex( const Vec3F& v )
 	{
 		vertices.push_back( v );
-		normals.push_back( Vec3F() );
+		normals.push_back( { 1, 0, 0 } );
 	}
 
 	void scale( const Vec3F& s )
@@ -106,7 +116,30 @@ public:
 		for( const auto& n : m.normals )
 			this->normals.push_back( n );
 	}
+
+	Vec3F computeNormal( const Face& face ) const
+	{
+		const Vec3F& p0 = this->vertices[face.v[0]];
+		const Vec3F& p1 = this->vertices[face.v[1]];
+		const Vec3F& p2 = this->vertices[face.v[2]];
+		return ( p1 - p0 ).cross( p2 - p0 ).normalized();
+	}
 	
+	void computeSharpNormals()
+	{
+		this->normals.resize( 0 );
+		for( auto& face : faces )
+		{
+			Vec3F normal = computeNormal( face );
+			for( uint i = 0; i < face.size(); i++ )
+			{
+				face.vn[i] = uint( this->normals.size() );
+				for( uint j = 0; j < 3; j++ )
+					this->normals.push_back( normal );
+			}
+		}
+	}
+
 	static Mesh loadWavefront(const std::string& fileName) {
 		std::fstream file(fileName, std::ios::in);
 		if (!file.is_open()) {
