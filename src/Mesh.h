@@ -323,14 +323,11 @@ struct Cube : public Mesh
 		for( float z = -1; z <= 1; z += 2 )
 			for( float y = -1; y <= 1; y += 2 )
 				for( float x = -1; x <= 1; x += 2 )
-				{
-					//std::cout << c++ << " " << x << " " << y << " " << z << std::endl;
 					addVertex( { x, y, z } );
-				}
 
-		faces.push_back( Face( { 0, 1, 2, 3 } ) );
-		faces.push_back( Face( { 4, 6, 7, 5} ) );
-		faces.push_back( Face( { 0, 1, 6, 4 } ) );
+		faces.push_back( Face( { 0, 1, 3, 2 } ) );
+		faces.push_back( Face( { 4, 6, 7, 5 } ) );
+		faces.push_back( Face( { 0, 2, 6, 4 } ) );
 		faces.push_back( Face( { 1, 5, 7, 3 } ) );
 		faces.push_back( Face( { 0, 4, 5, 1 } ) );
 		faces.push_back( Face( { 2, 3, 7, 6 } ) );
