@@ -316,11 +316,20 @@ struct PerlinNoise : public VoxelTexture
 Mesh VoxelTexture::isoSurface( float threshold ) const
 {
 	Mesh mesh;
-	for( unsigned int z = 0; z < depth; z++ )
-		for( unsigned int y = 0; y < height; y++ )
-			for( unsigned int x = 0; x < width; x++ )
+	for( unsigned int z = 0; z < depth-1; z++ )
+		for( unsigned int y = 0; y < height-1; y++ )
+			for( unsigned int x = 0; x < width-1; x++ )
 			{
-				if( at( x, y, z ) >= threshold )
+				bool surface = false;
+				bool in = at( x, y, z ) >= threshold;
+				for( uint i = 1; i < 8; i++ )
+					if( ( at( x + ( i % 2 ), y + ( i / 2 % 2 ), z + ( i / 4 % 2 ) ) >= threshold ) != in )
+					{
+						surface = true;
+						break;
+					}
+
+				if( surface )
 				{
 					Mesh cube = Cube();
 					cube.translate( { float( 2*x ), float( 2*y ), float( 2*z ) } );
