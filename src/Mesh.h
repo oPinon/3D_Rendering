@@ -26,6 +26,8 @@ public:
 	const T& operator[]( unsigned int i ) const { return values[i]; }
 	T& operator[]( unsigned int i ) { return values[i]; }
 	void operator+=( const T& v ) { for( auto& e : *this ) { e += v; } }
+	void operator+=( const Vec& v ) { for( uint i = 0; i < S; i++ ) { values[i] += v[i]; } }
+	Vec operator+( const Vec& v ) const { Vec dst; for( uint i = 0; i < S; i++ ) { dst[i] = values[i] + v[i]; } return dst; }
 	Vec operator-( const Vec& v ) const { Vec dst; for( uint i = 0; i < S; i++ ) { dst[i] = values[i] - v[i]; } return dst; }
 	T norm2() const { T sum = 0; for( const auto& e : *this ) { sum += e*e; } return sum; }
 	T norm() const { return sqrt( norm2() ); }
@@ -137,12 +139,27 @@ public:
 		{
 			Vec3F normal = computeNormal( face );
 			for( uint i = 0; i < face.size(); i++ )
-			{
 				face.vn[i] = uint( this->normals.size() );
-				for( uint j = 0; j < 3; j++ )
-					this->normals.push_back( normal );
+			this->normals.push_back( normal );
+		}
+	}
+
+	void computeSmoothNormals()
+	{
+		this->normals.resize( this->ptCount() );
+		std::vector<uint> counts( this->ptCount(), 0 );
+		for( auto& face : faces )
+		{
+			Vec3F normal = computeNormal( face );
+			face.vn = face.v;
+			for( uint i = 0; i < face.size(); i++ )
+			{
+				this->normals[face.v[i]] += normal;
+				counts[face.v[i]]++;
 			}
 		}
+		for( uint i = 0; i < this->normals.size(); i++ )
+			this->normals[i] /= counts[i];
 	}
 
 	static Mesh loadWavefront(const std::string& fileName) {
