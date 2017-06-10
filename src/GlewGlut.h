@@ -240,8 +240,8 @@ namespace GlewGlut {
 		if( params.cameraType == Params::CameraType::TurnAround )
 		{
 			if( movingCamera ) {
-				viewTrX += viewTrSpeed*float(x - mouseLastX)/min(currentH,currentW);
-				viewY -= viewTrSpeed*float(y - mouseLastY)/min(currentH,currentW);
+				viewTrX += viewTrSpeed*float(x - mouseLastX)/fminf(currentH,currentW);
+				viewY -= viewTrSpeed*float(y - mouseLastY)/fminf(currentH,currentW);
 			} else {
 				viewRotX = mod(viewRotX + y - mouseLastY, 360);
 				viewRotZ = mod(viewRotZ + x - mouseLastX, 360);	
