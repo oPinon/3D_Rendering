@@ -67,7 +67,7 @@ void init() {
 	glEnable(GL_DEPTH_TEST);
 
 	glClearColor(0.5,0.5,0.5,0.0);
-	mesh = Mesh::loadWavefront("sponza.obj");
+	mesh = Mesh::loadWavefront("suzan.obj");
 	mesh.init();
 	//mesh2 = Mesh::loadWavefront("../Hair/body.obj");
 	//mesh2.init();

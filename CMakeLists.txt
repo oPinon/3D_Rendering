@@ -58,9 +58,37 @@ target_include_directories( Lodepng PUBLIC
 	${CMAKE_CURRENT_LIST_DIR}/deps/lodepng/
 )
 
+set( ResourceDir "${CMAKE_CURRENT_LIST_DIR}/deps/resources" )
+file( MAKE_DIRECTORY ${ResourceDir} )
+
+function( DownloadResource Url FilePath )
+	if( NOT EXISTS ${FilePath} )
+		message( STATUS "Downloading ${FilePath} from ${Url}" )
+		file( DOWNLOAD ${Url} ${FilePath} SHOW_PROGRESS )
+	endif()
+endfunction( DownloadResource )
+
 AddProject( Fractal3D )
 target_link_libraries( Fractal3D Lodepng )
+DownloadResource(
+	"https://github.com/hughsk/matcap/raw/master/textures/00030.png"
+	"${ResourceDir}/matcap.png"
+)
+install( FILES ${ResourceDir}/matcap.png DESTINATION ${InstallDir}/Fractal3D/ )
+
+DownloadResource(
+	"https://www.dropbox.com/s/lwt2jmnlvgca6kj/suzan.obj?dl=1"
+	"${ResourceDir}/suzan.obj"
+)
+
+DownloadResource(
+	"https://www.dropbox.com/s/5lql5h25kwqsc1n/suzanHair.obj?dl=1"
+	"${ResourceDir}/suzanHair.obj"
+)
 
 AddProject( Hair )
+install( FILES ${ResourceDir}/suzan.obj DESTINATION ${InstallDir}/Hair/ RENAME body.obj )
+install( FILES ${ResourceDir}/suzanHair.obj DESTINATION ${InstallDir}/Hair/ RENAME hairLines.obj )
 
 AddProject( DeferredRendering )
+install( FILES ${ResourceDir}/suzan.obj DESTINATION ${InstallDir}/DeferredRendering/ )
