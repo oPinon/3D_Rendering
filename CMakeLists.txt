@@ -35,16 +35,19 @@ target_link_libraries( 3DRendering PUBLIC
 	${GlutDir}/lib/x64/freeglut.lib
 )
 
-## Volumetric ##
-file( GLOB VolumetricSrc
-	"${SrcDir}/Volumetric/*.cpp"
-	"${SrcDir}/Volumetric/*.h"
-)
-add_executable( Volumetric ${VolumetricSrc} )
-target_link_libraries( Volumetric 3DRendering )
-install( TARGETS Volumetric DESTINATION ${InstallDir}/Volumetric )
-file( GLOB ShaderFiles "${SrcDir}/Volumetric/*.glsl" )
-install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/Volumetric )
+function( AddProject Folder )
+	file( GLOB ${Folder}Src
+		"${SrcDir}/${Folder}/*.cpp"
+		"${SrcDir}/${Folder}/*.h"
+	)
+	add_executable( ${Folder} ${${Folder}Src} )
+	target_link_libraries( ${Folder} 3DRendering )
+	install( TARGETS ${Folder} DESTINATION ${InstallDir}/${Folder} )
+	file( GLOB ShaderFiles "${SrcDir}/${Folder}/*.glsl" )
+	install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/${Folder} )
+endfunction( AddProject )
+
+AddProject( Volumetric False )
 
 ## Lodepng (dependency)
 add_library( Lodepng
@@ -55,46 +58,9 @@ target_include_directories( Lodepng PUBLIC
 	${CMAKE_CURRENT_LIST_DIR}/deps/lodepng/
 )
 
-## Fractal 3D ##
-file( GLOB Fractal3DSrc
-	${SrcDir}/Fractal3D/*.h
-	${SrcDir}/Fractal3D/*.cpp
-)
-add_executable( Fractal3D ${Fractal3DSrc} )
-target_link_libraries( Fractal3D
-	3DRendering
-	Lodepng
-)
-install( TARGETS Fractal3D DESTINATION ${InstallDir}/Fractal3D )
-file( GLOB ShaderFiles "${SrcDir}/Fractal3D/*.glsl" )
-install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/Fractal3D )
+AddProject( Fractal3D )
+target_link_libraries( Fractal3D Lodepng )
 
-## Hair ## 
-file( GLOB HairSrc
-	${SrcDir}/Hair/*.h
-	${SrcDir}/Hair/*.cpp
-)
-add_executable( Hair ${HairSrc} )
-target_link_libraries( Hair
-	3DRendering
-	Lodepng
-)
-install( TARGETS Hair DESTINATION ${InstallDir}/Hair )
-file( GLOB ShaderFiles "${SrcDir}/Hair/*.glsl" )
-install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/Hair )
+AddProject( Hair )
 
-## Deferred rendering
-file( GLOB DeferredRenderingSrc
-	${SrcDir}/DeferredRendering/*.h
-	${SrcDir}/DeferredRendering/*.cpp
-)
-add_executable( DeferredRendering ${DeferredRenderingSrc} )
-target_link_libraries( DeferredRendering
-	3DRendering
-	Lodepng
-)
-install( TARGETS DeferredRendering DESTINATION ${InstallDir}/DeferredRendering )
-file( GLOB ShaderFiles "${SrcDir}/DeferredRendering/*.glsl" )
-install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/DeferredRendering )
-
-# HACK / TODO : function for all the similar targets
+AddProject( DeferredRendering )
