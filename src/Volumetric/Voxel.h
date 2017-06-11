@@ -7,12 +7,20 @@
 #include <fstream>
 #include <sstream>
 
+#include <math.h>
+
 /*
 template< typename A, typename B>
 static inline A min( const A& a, const B& b ) { return a < b ? a : b; }
 template< typename A, typename B>
 static inline A max( const A& a, const B& b ) { return a > b ? a : b; }
 */
+
+#ifdef WIN32
+inline unsigned short byteswap_ushort( unsigned short n ) { return _byteswap_ushort( n ); }
+#else
+inline unsigned short byteswap_ushort( unsigned short n ) { return __builtin_bswap32( n ); }
+#endif
 
 using namespace std;
 
@@ -254,7 +262,7 @@ struct VoxelMRI : public VoxelTexture {
 			vector<short> data(w*w);
 			in.read((char*)data.data(), w*w * 2);
 			for (int i = 0; i < w*w; i++) {
-				voxels.push_back(_byteswap_ushort(((unsigned short*)data.data())[i]));
+				voxels.push_back(byteswap_ushort(((unsigned short*)data.data())[i]));
 			}
 		}
 
@@ -307,7 +315,7 @@ struct PerlinNoise : public VoxelTexture
 		{
 			unsigned int newS = this->width * 2;
 			*this = this->resample( newS, newS, newS );
-			addNoise( std::powf( float(this->width), -0.3f ) );
+			addNoise( pow( float(this->width), -0.3f ) );
 		}
 		//normalize();
 	}

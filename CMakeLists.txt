@@ -3,18 +3,19 @@ project (3DRendering)
 
 set (CMAKE_CXX_STANDARD 11)
 
-set(GlewDir "~/Libraries/Glew" CACHE PATH "desc")
-set(GlutDir "~/Libraries/Glut" CACHE PATH "desc")
+set(GlewIDir "/usr/include" CACHE PATH "desc")
+set(GlutIDir "/usr/include" CACHE PATH "desc")
 
 set( InstallDir "${CMAKE_BINARY_DIR}/install" CACHE PATH "" )
 
-if( NOT EXISTS ${GlewDir}/include )
-	message( SEND_ERROR "Please specify GlewDir" )
-endif()
+function( CheckExists Var )
+	if( NOT EXISTS ${${Var}} )
+		message( SEND_ERROR "Please specify ${Var}" )
+	endif()
+endfunction( CheckExists )
 
-if( NOT EXISTS ${GlutDir}/include )
-	message( SEND_ERROR "Please specify GlutDir" )
-endif()
+CheckExists( GlewIDir )
+CheckExists( GlutIDir )
 
 set( SrcDir "${CMAKE_CURRENT_LIST_DIR}/src" )
 
@@ -25,15 +26,36 @@ add_library( 3DRendering
 )
 
 target_include_directories( 3DRendering PUBLIC
-	${GlewDir}/include
-	${GlutDir}/include
+	${GlewIDir}
+	${GlutIDir}
 	${SrcDir}
 )
 
+set( Plsfx "so" )
+if( WIN32 )
+	set( Plsfx "lib" )
+endif()
+
+set( GlewLibPath "/usr/lib/glew32.${Plsfx}" CACHE FILEPATH "" )
+CheckExists( GlewLibPath )
+set( GlutLibPath "/usr/lib/freeglut.${Plsfx}" CACHE FILEPATH "" )
+CheckExists( GlutLibPath )
+
 target_link_libraries( 3DRendering PUBLIC
-	${GlewDir}/lib/Release/x64/glew32.lib
-	${GlutDir}/lib/x64/freeglut.lib
+	${GlewLibPath}
+	${GlutLibPath}
 )
+
+if( NOT WIN32 )
+	set( GlLibPath "/usr/lib/libGL.${Plsfx}" CACHE FILEPATH "" )
+	CheckExists( GlLibPath )
+	set( GluLibPath "/usr/lib/libGLU.${Plsfx}" CACHE FILEPATH "" )
+	CheckExists( GluLibPath )
+	target_link_libraries( 3DRendering PUBLIC
+		${GlLibPath}
+		${GlutLibPath}
+	)
+endif()
 
 function( AddProject Folder )
 	file( GLOB ${Folder}Src
@@ -47,7 +69,7 @@ function( AddProject Folder )
 	install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/${Folder} )
 endfunction( AddProject )
 
-AddProject( Volumetric False )
+AddProject( Volumetric )
 
 ## Lodepng (dependency)
 add_library( Lodepng

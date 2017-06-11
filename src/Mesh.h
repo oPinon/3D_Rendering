@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <math.h>
 
 typedef unsigned int uint;
 

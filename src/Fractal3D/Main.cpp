@@ -7,6 +7,13 @@
 #include <unordered_map>
 #include <string>
 
+#include <math.h>
+
+#ifdef WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+
 using namespace std;
 
 int currentW = 800;
@@ -186,7 +193,7 @@ struct CameraRecorded : public Camera {
 	}
 
 	static inline float interpKernel(float x) {
-		x = abs(x);
+		x = x < 0 ? -x : x;
 		return x < 1 ? 0.5f + 0.5f*cosf(3.1416f*x) : 0;
 	}
 
@@ -481,12 +488,12 @@ unordered_map<char, keyFunction> keys = {
 					stringstream cmd;
 					cmd << "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s "<< currentW << "x" << currentH << " -i - "
 						"-threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip output.mp4";
-					ffmpeg = _popen(cmd.str().c_str(), "wb");
+					ffmpeg = popen(cmd.str().c_str(), "wb");
 
 					recording = true;
 				}
 				else {
-					_pclose(ffmpeg);
+					pclose(ffmpeg);
 					recording = false;
 				}
 			}
