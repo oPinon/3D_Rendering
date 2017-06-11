@@ -67,6 +67,8 @@ function( AddProject Folder )
 	install( TARGETS ${Folder} DESTINATION ${InstallDir}/${Folder} )
 	file( GLOB ShaderFiles "${SrcDir}/${Folder}/*.glsl" )
 	install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/${Folder} )
+	set_target_properties( ${Folder} PROPERTIES # HACK ?
+		VS_DEBUGGER_WORKING_DIRECTORY ${InstallDir}/${Folder} )
 endfunction( AddProject )
 
 AddProject( Volumetric )
@@ -114,3 +116,5 @@ install( FILES ${ResourceDir}/suzanHair.obj DESTINATION ${InstallDir}/Hair/ RENA
 
 AddProject( DeferredRendering )
 install( FILES ${ResourceDir}/suzan.obj DESTINATION ${InstallDir}/DeferredRendering/ )
+
+AddProject( 2DTiles )
