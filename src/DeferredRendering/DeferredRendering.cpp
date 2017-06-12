@@ -51,7 +51,7 @@ void reshape() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, GlewGlut::currentW, GlewGlut::currentH, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, GlewGlut::turnAroundCamera.currentW, GlewGlut::turnAroundCamera.currentH, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // TODO : remove
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // TODO : use deferred rendering
 
@@ -59,7 +59,7 @@ void reshape() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glBindRenderbuffer(GL_RENDERBUFFER, depthRbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, GlewGlut::currentW, GlewGlut::currentH);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, GlewGlut::turnAroundCamera.currentW, GlewGlut::turnAroundCamera.currentH);
 }
 
 void init() {

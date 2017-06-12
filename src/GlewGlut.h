@@ -124,7 +124,7 @@ namespace GlewGlut {
 		size_t currentW, currentH;
 
 		virtual void init() {};
-		virtual void display() const = 0;
+		virtual void display() = 0;
 		virtual void mouseClick(int button, int state, int x, int y) = 0;
 		virtual void mouseMove(int x, int y) = 0;
 		virtual void reshape(GLsizei w, GLsizei h)
@@ -137,7 +137,7 @@ namespace GlewGlut {
 
 	struct FixedCamera : public AbstractCamera
 	{
-		void display() const override {}
+		void display() override {}
 		void mouseClick(int, int, int, int) override {}
 		void mouseMove(int, int) override {}
 	};
@@ -151,7 +151,7 @@ namespace GlewGlut {
 		float zoomSpeed = 0.96f;
 		bool movingCamera;
 
-		void display() const override
+		void display() override
 		{
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
@@ -208,7 +208,6 @@ namespace GlewGlut {
 		inline void init() override;
 	};
 
-	int currentW = 800, currentH = 600;
 	int windowId;
 	FixedCamera fixedCamera;
 	TurnAroundCamera turnAroundCamera;
@@ -222,12 +221,8 @@ namespace GlewGlut {
 
 	struct Params {
 
-		enum CameraType
-		{
-			Fixed,
-			TurnAround
-			// TODO: FreeLook
-		} cameraType = TurnAround;
+		AbstractCamera* camera = &turnAroundCamera;
+		GLsizei defaultW = 800, defaultH = 600;
 
 	} params;
 
@@ -323,15 +318,10 @@ namespace GlewGlut {
 		glutInit(&argc, NULL);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 
-		glutInitWindowSize(currentW, currentH);
-		switch (params.cameraType)
-		{
-		case Params::CameraType::Fixed: camera = &fixedCamera; break;
-		case Params::CameraType::TurnAround: camera = &turnAroundCamera; break;
-		default: assert(false);
-		}
+		glutInitWindowSize(params.defaultW,params.defaultW);
+		camera = params.camera;
 		camera->init();
-		camera->reshape(currentW, currentH);
+		camera->reshape(params.defaultW, params.defaultW);
 
 		std::cout << "Keys : " << std::endl;
 		for (const auto& key : keys) {

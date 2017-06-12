@@ -27,15 +27,27 @@ GLuint wPos, hPos;
 GLuint offPos;
 int offSet = 0;
 
+struct Camera : public GlewGlut::TurnAroundCamera
+{
+	void display() override
+	{
+		if (demoMode)
+			viewRotZ += 1;
+		GlewGlut::TurnAroundCamera::display();
+	}
+};
+
+Camera cam;
+
 void resize() {
 
-	glUniform1f(wPos, GLfloat( GlewGlut::currentW ) );
-	glUniform1f(hPos, GLfloat( GlewGlut::currentH ) );
+	glUniform1f(wPos, GLfloat( cam.currentW ) );
+	glUniform1f(hPos, GLfloat( cam.currentH ) );
 
 	// recreating the frameBuffer for the correct size
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GlewGlut::currentW, GlewGlut::currentH, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cam.currentW, cam.currentH, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // TODO : remove
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // TODO : use deferred rendering
 
@@ -107,10 +119,6 @@ void display() {
 		glScalef(model.xRatio, model.yRatio, model.zRatio);
 	}
 
-	// TODO
-	//if( demoMode )
-	//	GlewGlut::viewRotZ += 1;
-
 	// first pass : rendering back faces on the framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -178,5 +186,6 @@ int main(int argc, char *argv[])
 	callbacks.display = display;
 	callbacks.init = init;
 	callbacks.reshape = resize;
-	GlewGlut::main( callbacks );
+	GlewGlut::Params params; params.camera = &cam;
+	GlewGlut::main(callbacks, params);
 }

@@ -25,10 +25,17 @@ void reloadShader() {
 	catch (...) { return; }
 }
 
-void displayScene() {
+struct Camera : public GlewGlut::TurnAroundCamera
+{
+	void display() override
+	{
+		if (turnTable)
+			this->viewRotZ = fmodf( viewRotZ + 1.0, 360 );
+		GlewGlut::TurnAroundCamera::display();
+	}
+} camera;
 
-	// TODO
-	//if(turnTable) { GlewGlut::viewRotZ = fmodf(GlewGlut::viewRotZ + 1.0, 360); }
+void displayScene() {
 
 	meshShader.use();
 	mesh.draw();
@@ -66,5 +73,9 @@ int main() {
 		}
 	} });
 
-	GlewGlut::main(displayScene,init);
+	GlewGlut::Callbacks callbacks;
+	callbacks.init = init;
+	callbacks.display = displayScene;
+	GlewGlut::Params params; params.camera = &camera;
+	GlewGlut::main( callbacks, params );
 }
