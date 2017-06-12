@@ -21,6 +21,7 @@ set( SrcDir "${CMAKE_CURRENT_LIST_DIR}/src" )
 
 add_library( 3DRendering
 	"${SrcDir}/GlewGlut.h"
+	"${SrcDir}/Vec.h"
 	"${SrcDir}/Mesh.h"
 	"${SrcDir}/Mesh.cpp"
 )

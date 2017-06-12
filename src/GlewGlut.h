@@ -124,22 +124,15 @@ namespace GlewGlut {
 		size_t currentW, currentH;
 
 		virtual void init() {};
-		virtual void display() = 0;
-		virtual void mouseClick(int button, int state, int x, int y) = 0;
-		virtual void mouseMove(int x, int y) = 0;
+		virtual void display() {};
+		virtual void mouseClick(int button, int state, int x, int y) {};
+		virtual void mouseMove(int x, int y) {};
 		virtual void reshape(GLsizei w, GLsizei h)
 		{
 			currentW = w;
 			currentH = h;
 			glViewport(0, 0, w, h);
 		}
-	};
-
-	struct FixedCamera : public AbstractCamera
-	{
-		void display() override {}
-		void mouseClick(int, int, int, int) override {}
-		void mouseMove(int, int) override {}
 	};
 
 	struct TurnAroundCamera : public AbstractCamera
@@ -209,7 +202,7 @@ namespace GlewGlut {
 	};
 
 	int windowId;
-	FixedCamera fixedCamera;
+	AbstractCamera fixedCamera;
 	TurnAroundCamera turnAroundCamera;
 	AbstractCamera* camera = NULL;
 
