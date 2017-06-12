@@ -119,13 +119,100 @@ namespace GlewGlut {
 		}
 	};
 
+	struct AbstractCamera
+	{
+		size_t currentW, currentH;
+
+		virtual void init() {};
+		virtual void display() const = 0;
+		virtual void mouseClick(int button, int state, int x, int y) = 0;
+		virtual void mouseMove(int x, int y) = 0;
+		virtual void reshape(GLsizei w, GLsizei h)
+		{
+			currentW = w;
+			currentH = h;
+			glViewport(0, 0, w, h);
+		}
+	};
+
+	struct FixedCamera : public AbstractCamera
+	{
+		void display() const override {}
+		void mouseClick(int, int, int, int) override {}
+		void mouseMove(int, int) override {}
+	};
+
+	struct TurnAroundCamera : public AbstractCamera
+	{
+		int mouseLastX, mouseLastY;
+		float viewTrX = 0, viewY = 0;
+		float viewRotX = 30, viewRotZ = 10, zoom = 1;
+		float viewTrSpeed = 3.0;
+		float zoomSpeed = 0.96f;
+		bool movingCamera;
+
+		void display() const override
+		{
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+
+			gluPerspective(50, ((double)currentW) / currentH, 0.1, 100);
+
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+
+			gluLookAt(
+				0, -3, 0,
+				0, 0, 0,
+				0, 0, 1
+			);
+
+			glTranslatef(viewTrX, 0, viewY);
+			glRotated(viewRotX, 1, 0, 0);
+			glRotated(viewRotZ, 0, 0, 1);
+			glScalef(zoom, zoom, zoom);
+		}
+
+		void mouseMove(int x, int y) override
+		{
+			if (movingCamera) {
+				viewTrX += viewTrSpeed*float(x - mouseLastX) / fminf(currentH, currentW);
+				viewY -= viewTrSpeed*float(y - mouseLastY) / fminf(currentH, currentW);
+			}
+			else {
+				viewRotX = mod(viewRotX + y - mouseLastY, 360);
+				viewRotZ = mod(viewRotZ + x - mouseLastX, 360);
+			}
+			mouseLastX = x;
+			mouseLastY = y;
+		}
+
+		void mouseClick(int button, int state, int x, int y) override
+		{
+			switch (button) {
+			case 3: { // Scroll down
+				zoom /= zoomSpeed;
+			} break;
+			case 4: { // Scroll up
+				zoom *= zoomSpeed;
+			} break;
+			default: {
+				if (state == GLUT_DOWN) {
+					mouseLastX = x;
+					mouseLastY = y;
+				}
+			}
+			}
+		}
+
+		inline void init() override;
+	};
+
 	int currentW = 800, currentH = 600;
 	int windowId;
-	int mouseLastX, mouseLastY;
-	float viewTrX = 0, viewY = 0;
-	float viewRotX = 30, viewRotZ = 10, zoom = 1;
-	float viewTrSpeed = 3.0;
-	bool movingCamera;
+	FixedCamera fixedCamera;
+	TurnAroundCamera turnAroundCamera;
+	AbstractCamera* camera = NULL;
 
 	struct Callbacks {
 		void(*display)() = NULL;
@@ -146,24 +233,7 @@ namespace GlewGlut {
 
 	void display() {
 
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-
-		gluPerspective(50, ((double)currentW) / currentH, 0.1, 100);
-
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-
-		gluLookAt(
-			0, -3, 0,
-			0, 0, 0,
-			0, 0, 1
-		);
-
-		glTranslatef(viewTrX,0,viewY);
-		glRotated(viewRotX, 1, 0, 0);
-		glRotated(viewRotZ, 0, 0, 1);
-		glScalef(zoom, zoom, zoom);
+		camera->display();
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -194,17 +264,20 @@ namespace GlewGlut {
 					}
 				}
 			}
-		},
-		{
-			'w' ,
-			{
-				"Move the camera",
-				[](bool down) {
-					movingCamera = down;
-				}
-			}
 		}
 	};
+
+	inline void TurnAroundCamera::init()
+	{
+		static TurnAroundCamera* s_cam = NULL; // HACK
+		s_cam = this;
+		keys.insert({ 'w',{
+			"Move the camera",
+			[](bool down) {
+				s_cam->movingCamera = down;
+			}
+		} });
+	}
 
 	void keyboard(unsigned char key, int x, int y) {
 
@@ -228,48 +301,17 @@ namespace GlewGlut {
 
 	void reshape(GLsizei w, GLsizei h) {
 
-		currentW = w;
-		currentH = h;
-		glViewport(0, 0, w, h);
+		camera->reshape(w,h);
 		if(callbacks.reshape != NULL) { callbacks.reshape(); }
 		display();
 	}
 
 	void mouseMove(int x, int y) {
-
-		if( params.cameraType == Params::CameraType::TurnAround )
-		{
-			if( movingCamera ) {
-				viewTrX += viewTrSpeed*float(x - mouseLastX)/fminf(currentH,currentW);
-				viewY -= viewTrSpeed*float(y - mouseLastY)/fminf(currentH,currentW);
-			} else {
-				viewRotX = mod(viewRotX + y - mouseLastY, 360);
-				viewRotZ = mod(viewRotZ + x - mouseLastX, 360);	
-			}
-		}
-		mouseLastX = x;
-		mouseLastY = y;
+		camera->mouseMove(x, y);
 	}
 
-	float zoomSpeed = 0.96f;
 	void mouseClick(int button, int state, int x, int y) {
-
-		switch (button) {
-		case 3: { // Scroll down
-			if( params.cameraType == Params::CameraType::TurnAround )
-				zoom /= zoomSpeed;
-		} break;
-		case 4: { // Scroll up
-			if ( params.cameraType == Params::CameraType::TurnAround )
-				zoom *= zoomSpeed;
-		} break;
-		default: {
-			if (state == GLUT_DOWN) {
-				mouseLastX = x;
-				mouseLastY = y;
-			}
-		}
-		}
+		camera->mouseClick( button, state, x, y );
 	}
 
 	void main( const Callbacks& callbacks, const Params& params = {} ) {
@@ -277,16 +319,24 @@ namespace GlewGlut {
 		GlewGlut::callbacks = callbacks;
 		GlewGlut::params = params;
 
-		std::cout << "Keys : " << std::endl;
-		for (const auto& key : keys) {
-			std::cout << " '" << key.first << "' -> " << key.second.description << std::endl;
-		}
-
 		int argc = 0;
 		glutInit(&argc, NULL);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 
 		glutInitWindowSize(currentW, currentH);
+		switch (params.cameraType)
+		{
+		case Params::CameraType::Fixed: camera = &fixedCamera; break;
+		case Params::CameraType::TurnAround: camera = &turnAroundCamera; break;
+		default: assert(false);
+		}
+		camera->init();
+		camera->reshape(currentW, currentH);
+
+		std::cout << "Keys : " << std::endl;
+		for (const auto& key : keys) {
+			std::cout << " '" << key.first << "' -> " << key.second.description << std::endl;
+		}
 
 		windowId = glutCreateWindow("Scene");
 

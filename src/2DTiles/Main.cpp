@@ -14,7 +14,7 @@ void display()
 	{
 		size_t n2 = nLines * pow( 2.0, j );
 		float weight = 1.0 * pow( 2.0, - 1.0 * j );
-		weight *= GlewGlut::zoom;
+		weight *= GlewGlut::turnAroundCamera.zoom;
 		glLineWidth( weight > 1 ? weight : 1 );
 		glColor4f(1, 1, 1, weight > 1 ? 1 : weight);
 		glBegin(GL_LINES);

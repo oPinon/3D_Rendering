@@ -107,8 +107,9 @@ void display() {
 		glScalef(model.xRatio, model.yRatio, model.zRatio);
 	}
 
-	if( demoMode )
-		GlewGlut::viewRotZ += 1;
+	// TODO
+	//if( demoMode )
+	//	GlewGlut::viewRotZ += 1;
 
 	// first pass : rendering back faces on the framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);

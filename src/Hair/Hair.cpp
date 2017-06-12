@@ -27,7 +27,8 @@ void reloadShader() {
 
 void displayScene() {
 
-	if(turnTable) { GlewGlut::viewRotZ = fmodf(GlewGlut::viewRotZ + 1.0, 360); }
+	// TODO
+	//if(turnTable) { GlewGlut::viewRotZ = fmodf(GlewGlut::viewRotZ + 1.0, 360); }
 
 	meshShader.use();
 	mesh.draw();
