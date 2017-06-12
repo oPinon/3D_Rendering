@@ -28,10 +28,14 @@ struct ZoomPanCamera : public GlewGlut::AbstractCamera
 {
 	float zoomSpeed = 1.1;
 	float zoom = 1.0;
-	Vec2F offset;
-	Vec2I lastMousePos;
+	Vec2F sceneOffset;
+	Vec2I lastMousePosPx;
+	inline float pxToSceneScale() const { return 2 / zoom / min(currentW, currentH); }
+	inline Vec2F pxToScene(const Vec2I& px) const { return Vec2F(px) * this->pxToSceneScale() - this->sceneOffset; }
 	void mouseClick(int button, int state, int x, int y) override
 	{
+		Vec2I mp = { x, y };
+		Vec2F prevPos = pxToScene( mp );
 		if (state == GLUT_DOWN )
 		{
 			switch( button )
@@ -40,28 +44,33 @@ struct ZoomPanCamera : public GlewGlut::AbstractCamera
 			case 4: zoom /= zoomSpeed; break;
 			}
 		}
-		lastMousePos = { x, y };
+		Vec2F newPos = pxToScene( mp );
+		//this->sceneOffset += ( newPos - prevPos ) / 2;
+		lastMousePosPx = mp;
 	}
 	void display() override
 	{
 		glMatrixMode( GL_PROJECTION );
 		glLoadIdentity();
+		float minS = min( this->currentW, this->currentH );
+		float xRatio = float(this->currentW) / minS;
+		float yRatio = float(this->currentH) / minS;
 		glOrtho(
-			-1, 1,
-			1, -1,
+			-1 * xRatio, 1 * xRatio,
+			1 * yRatio, -1 * yRatio,
 			-1, 1
 		);
 		glMatrixMode( GL_MODELVIEW );
 		glLoadIdentity();
 		glScalef(zoom, zoom, zoom);
-		glTranslatef(offset[0], offset[1], 0);
+		glTranslatef(sceneOffset[0], sceneOffset[1], 0);
 	}
 	void mouseMove(int x, int y) override
 	{
 		Vec2I newPos = { x, y };
-		Vec2I diff = newPos - this->lastMousePos;
-		this->lastMousePos = newPos;
-		offset += Vec2F( diff ) * 2 / zoom / min( currentW, currentH );
+		Vec2F diff = this->pxToScene( newPos ) - this->pxToScene( this->lastMousePosPx );
+		sceneOffset += diff;
+		this->lastMousePosPx = newPos;
 	}
 } camera;
 
