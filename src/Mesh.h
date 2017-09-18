@@ -293,6 +293,18 @@ public:
 	}
 };
 
+struct Plane : public Mesh
+{
+	Plane()
+	{
+		const float z = 0;
+		for (float y = -1; y <= 1; y += 2)
+			for (float x = -1; x <= 1; x += 2)
+				this->addVertex( { x, y, z } );
+		this->faces.push_back( Face( { 0, 1, 3, 2 } ) );
+	}
+};
+
 struct Cube : public Mesh
 {
 	Cube()

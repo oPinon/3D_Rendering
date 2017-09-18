@@ -67,6 +67,7 @@ function( AddProject Folder )
 	target_link_libraries( ${Folder} 3DRendering )
 	install( TARGETS ${Folder} DESTINATION ${InstallDir}/${Folder} )
 	file( GLOB ShaderFiles "${SrcDir}/${Folder}/*.glsl" )
+	target_sources( ${Folder} PRIVATE "${ShaderFiles}" )
 	install( FILES ${ShaderFiles} DESTINATION ${InstallDir}/${Folder} )
 	set_target_properties( ${Folder} PROPERTIES # HACK ?
 		VS_DEBUGGER_WORKING_DIRECTORY ${InstallDir}/${Folder} )
@@ -119,3 +120,7 @@ AddProject( DeferredRendering )
 install( FILES ${ResourceDir}/suzan.obj DESTINATION ${InstallDir}/DeferredRendering/ )
 
 AddProject( 2DTiles )
+
+AddProject( ParticleLandscape )
+target_link_libraries( ParticleLandscape Lodepng )
+install( FILES ${ResourceDir}/particleLandscape.png DESTINATION ${InstallDir}/ParticleLandscape/ )
