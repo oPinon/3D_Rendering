@@ -75,7 +75,7 @@ public:
 		{
 			Face newF = f;
 			newF.v += this->ptCount();
-			newF.vn += this->ptCount();
+			newF.vn += this->normalCount();
 			//newF.vt += // TODO
 			this->faces.push_back( newF );
 		}

@@ -44,6 +44,7 @@ void init()
 		for( size_t x = 0; x < image.w; x++ )
 		{
 			Cube cube;
+			cube.computeSharpNormals();
 			const float offset = 0.1 * ( image.at(x, y, 3) / 255.0f );
 			cube.scale( Vec3F(
 				1.0 / image.w,
@@ -57,7 +58,6 @@ void init()
 			));
 			landscape += cube;
 		}
-	landscape.computeSharpNormals();
 }
 
 void displayScene()
